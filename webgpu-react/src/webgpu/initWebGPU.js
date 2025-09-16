@@ -1,4 +1,5 @@
 import rectWGSL from "../shaders/rect_shader.wgsl?raw";
+import { generateNoiseMap } from "./noise";
 
 export async function initWebGPU(canvas) {
   if (!canvas) return () => {};
@@ -56,6 +57,33 @@ export async function initWebGPU(canvas) {
   }
   flushViewUBO();
 
+  // Define params
+  const maxCellValue = 100.0;
+  const terrainHeightMultiplier = 1.0;
+  const colorSteps = 10;
+  const numberOfTerrainColors = 7;
+
+  // Create a Float32Array view
+  // Layout order must match the WGSL struct!
+  const terrainData = new Float32Array([
+    maxCellValue, // f32
+    terrainHeightMultiplier, // f32
+    colorSteps, // reinterpreted as u32
+    numberOfTerrainColors, // reinterpreted as u32
+    0.0,
+    0.0, // padding (vec2<f32>)
+  ]);
+
+  // Create the buffer (32 bytes)
+  const terrainBufferSize = 32; // must be multiple of 16
+  const terrainBuffer = device.createBuffer({
+    size: terrainBufferSize,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  });
+
+  // Upload the data
+  device.queue.writeBuffer(terrainBuffer, 0, terrainData);
+
   // ----- Mouse handling -----
   function onMouseMove(e) {
     const rect = canvas.getBoundingClientRect();
@@ -104,23 +132,57 @@ export async function initWebGPU(canvas) {
   // Initialize both (optional)
   {
     const init = new Float32Array(cellsBufferSize / 4);
+    const noiseData = generateNoiseMap(width, height);
+
+    for (let index = 0; index < noiseData.length; index++) {
+      const cellIndex = index * 4;
+      init[cellIndex] = noiseData[index] * 100.0;
+    }
+
     device.queue.writeBuffer(prevCellsBuffer, 0, init);
     device.queue.writeBuffer(nextCellsBuffer, 0, init);
   }
 
-  // Helper to write a single cell into the buffer that will be READ next step
-  let aToB = true; // true => compute uses A->B and we render B this frame
-  function setCellRGBA(x, y, r, g, b, a) {
-    if (x < 0 || y < 0 || x >= width || y >= height) return;
-    const byteOffset = (y * width + x) * BYTES_PER_CELL;
-    const bufferToEdit = aToB ? prevCellsBuffer : nextCellsBuffer;
-    device.queue.writeBuffer(
-      bufferToEdit,
-      byteOffset,
-      new Float32Array([r, g, b, a])
-    );
+  // Terrain Color buffer
+
+  const terrainColors = [
+    "rgb(77, 73, 73)",
+    "rgb(130, 124, 116)",
+    "rgb(190, 147, 90)",
+    "rgb(173, 110, 27)",
+    "rgb(61, 104, 65)",
+    "rgb(27, 70, 31)",
+    "rgb(255, 255, 255)",
+  ];
+  function colorsToFloatArray(colors) {
+    const floats = [];
+
+    for (const color of colors) {
+      // Extract r, g, b using regex
+      const match = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+      if (!match) continue;
+
+      const r = parseInt(match[1], 10) / 255.0;
+      const g = parseInt(match[2], 10) / 255.0;
+      const b = parseInt(match[3], 10) / 255.0;
+
+      floats.push(r, g, b, 1.0); // RGBA, with alpha=1
+    }
+
+    return new Float32Array(floats);
   }
-  // (export setCellRGBA if you need to call it externally)
+
+  const terrainColorsBuffer = device.createBuffer({
+    label: "Terrain Colors Buffer",
+    size: terrainColors.length * 16,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+  });
+
+  device.queue.writeBuffer(
+    terrainColorsBuffer,
+    0,
+    colorsToFloatArray(terrainColors)
+  );
 
   // ----- Bind group layouts -----
   // Compute: 0=uniform, 1=prev(read), 2=next(write)
@@ -158,6 +220,16 @@ export async function initWebGPU(canvas) {
         binding: 1,
         visibility: GPUShaderStage.FRAGMENT,
         buffer: { type: "read-only-storage" },
+      },
+      {
+        binding: 2,
+        visibility: GPUShaderStage.FRAGMENT,
+        buffer: { type: "read-only-storage" },
+      },
+      {
+        binding: 3,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: { type: "uniform" },
       },
     ],
   });
@@ -204,6 +276,8 @@ export async function initWebGPU(canvas) {
     entries: [
       { binding: 0, resource: { buffer: viewUniformBuffer } },
       { binding: 1, resource: { buffer: prevCellsBuffer } },
+      { binding: 2, resource: { buffer: terrainColorsBuffer } },
+      { binding: 3, resource: { buffer: terrainBuffer } },
     ],
   });
 
@@ -213,6 +287,8 @@ export async function initWebGPU(canvas) {
     entries: [
       { binding: 0, resource: { buffer: viewUniformBuffer } },
       { binding: 1, resource: { buffer: nextCellsBuffer } },
+      { binding: 2, resource: { buffer: terrainColorsBuffer } },
+      { binding: 3, resource: { buffer: terrainBuffer } },
     ],
   });
 
@@ -236,6 +312,7 @@ export async function initWebGPU(canvas) {
   const dispatchY = Math.ceil(height / WG_Y);
 
   // ----- Frame loop -----
+  let aToB = true; // true => compute uses A->B and we render B this frame
   let rafId = 0;
   function frame(tMs = 0) {
     writeTime(tMs * 0.001);
