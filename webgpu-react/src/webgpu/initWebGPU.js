@@ -13,12 +13,11 @@ export async function initWebGPU(canvas) {
   const context = canvas.getContext("webgpu");
   const format = navigator.gpu.getPreferredCanvasFormat();
 
-  // Drawing buffer size (one cell per pixel)
+  // Fixed drawing buffer; CSS size can differ
   const width = 1920;
   const height = 1080;
   canvas.width = width;
   canvas.height = height;
-  // CSS size is controlled by the parent via style; drawing buffer stays fixed.
 
   context.configure({
     device,
@@ -26,29 +25,28 @@ export async function initWebGPU(canvas) {
     alphaMode: "opaque",
   });
 
-  // Shader module (vs/fs/cs are in the same WGSL file)
+  // ----- Shader -----
   const module = device.createShaderModule({
     label: "Rect Shader",
     code: rectWGSL,
   });
 
-  // --- Uniform buffer: 32 bytes (size.xy, mouse.xy, time, pad) ---
-  // Layout (bytes):
-  // 0..3: size.x (u32), 4..7: size.y (u32)
-  // 8..11: mouse.x (u32), 12..15: mouse.y (u32)
-  // 16..19: time (f32), 20..31: padding
+  // ----- Uniforms (32 bytes total) -----
+  // Layout (each 4 bytes):
+  // [0]=w(u32), [1]=h(u32), [2]=mouseX(u32), [3]=mouseY(u32),
+  // [4]=time(f32), [5]=mouseHeld(f32), [6],[7]=padding
   const viewUBO = new ArrayBuffer(32);
   const viewU32 = new Uint32Array(viewUBO);
   const viewF32 = new Float32Array(viewUBO);
   viewU32[0] = width;
   viewU32[1] = height;
-  viewU32[2] = 0; // mouse.x
-  viewU32[3] = 0; // mouse.y
-  viewF32[4] = 0.0; // time
-  viewF32[5] = 0; // mouseHeld (update on click)
+  viewU32[2] = 0;
+  viewU32[3] = 0;
+  viewF32[4] = 0.0;
+  viewF32[5] = 0.0;
 
   const viewUniformBuffer = device.createBuffer({
-    label: "View Uniform (size, mouse, time)",
+    label: "View Uniform",
     size: 32,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
@@ -58,137 +56,172 @@ export async function initWebGPU(canvas) {
   }
   flushViewUBO();
 
-  // --- Mouse handling: map client coords -> device pixels ---
-  window.addEventListener("mousemove", (e) => {
+  // ----- Mouse handling -----
+  function onMouseMove(e) {
     const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width; // device px per CSS px
+    const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
     const mx = Math.floor((e.clientX - rect.left) * scaleX);
     const my = Math.floor((e.clientY - rect.top) * scaleY);
-
-    // clamp to [0, size)
     viewU32[2] = Math.min(Math.max(mx, 0), width - 1);
     viewU32[3] = Math.min(Math.max(my, 0), height - 1);
+    flushViewUBO();
+  }
+  function onMouseDown() {
+    viewF32[5] = 1.0;
+    flushViewUBO();
+  }
+  function onMouseUp() {
+    viewF32[5] = 0.0;
+    flushViewUBO();
+  }
 
-    flushViewUBO(); // you can also defer to next frame if you prefer
-  });
-
-  window.addEventListener("mousedown", (e) => {
-    viewF32[5] = 1; // update mouse held to true
-  });
-
-  window.addEventListener("mouseup", (e) => {
-    viewF32[5] = 0; // update mouse held to true
-  });
+  window.addEventListener("mousemove", onMouseMove);
+  window.addEventListener("mousedown", onMouseDown);
+  window.addEventListener("mouseup", onMouseUp);
 
   function writeTime(tSeconds) {
-    viewF32[4] = tSeconds; // time at offset 8
+    viewF32[4] = tSeconds;
     device.queue.writeBuffer(viewUniformBuffer, 0, viewUBO);
   }
 
-  const cellsCount = width * height;
-  const CELL_DATA_SIZE = 2;
-  const BYTES_PER_CELL = 16 * CELL_DATA_SIZE; // vec4f
-  const cellsBufferSize = cellsCount * BYTES_PER_CELL;
+  // ----- Storage buffers (vec4f per cell => 16 bytes) -----
+  const BYTES_PER_CELL = 16;
+  const cellsBufferSize = width * height * BYTES_PER_CELL;
 
-  const cellsBuffer = device.createBuffer({
-    label: "Cells Storage Buffer",
+  const prevCellsBuffer = device.createBuffer({
+    label: "Prev Cells",
     size: cellsBufferSize,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
 
-  // Optional: initialize once from CPU (will be overwritten by compute anyway)
+  const nextCellsBuffer = device.createBuffer({
+    label: "Next Cells",
+    size: cellsBufferSize,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+  });
+
+  // Initialize both (optional)
   {
-    const init = new Float32Array(cellsBufferSize / (CELL_DATA_SIZE * 4));
-    for (let y = 0; y < height; ++y) {
-      for (let x = 0; x < width; ++x) {
-        const i = (y * width + x) * (CELL_DATA_SIZE * 4);
-        init[i + 0] = x / (width - 1);
-        init[i + 1] = y / (height - 1);
-        init[i + 2] = 0; // height
-        init[i + 3] = 0; // famount
-        init[i + 4] = 0; // Padding
-        init[i + 5] = 0; //
-      }
-    }
-    device.queue.writeBuffer(cellsBuffer, 0, init);
+    const init = new Float32Array(cellsBufferSize / 4);
+    device.queue.writeBuffer(prevCellsBuffer, 0, init);
+    device.queue.writeBuffer(nextCellsBuffer, 0, init);
   }
 
-  // Helpers to update cells
+  // Helper to write a single cell into the buffer that will be READ next step
+  let aToB = true; // true => compute uses A->B and we render B this frame
   function setCellRGBA(x, y, r, g, b, a) {
     if (x < 0 || y < 0 || x >= width || y >= height) return;
     const byteOffset = (y * width + x) * BYTES_PER_CELL;
+    const bufferToEdit = aToB ? prevCellsBuffer : nextCellsBuffer;
     device.queue.writeBuffer(
-      cellsBuffer,
+      bufferToEdit,
       byteOffset,
       new Float32Array([r, g, b, a])
     );
   }
+  // (export setCellRGBA if you need to call it externally)
 
-  function setCells(data /* Float32Array length = width*height*4 */) {
-    if (!(data instanceof Float32Array))
-      throw new Error("setCells expects a Float32Array");
-    if (data.length !== width * height * (CELL_DATA_SIZE * 4)) {
-      throw new Error(
-        `setCells requires exactly ${
-          width * height * (CELL_DATA_SIZE * 4)
-        } floats`
-      );
-    }
-    device.queue.writeBuffer(cellsBuffer, 0, data);
-  }
-
-  // Bindings shared by fragment & compute
-  const bindGroupLayout = device.createBindGroupLayout({
-    label: "BGL: View+Cells",
+  // ----- Bind group layouts -----
+  // Compute: 0=uniform, 1=prev(read), 2=next(write)
+  const computeBGL = device.createBindGroupLayout({
+    label: "Compute BGL",
     entries: [
       {
         binding: 0,
-        visibility: GPUShaderStage.FRAGMENT | GPUShaderStage.COMPUTE,
+        visibility: GPUShaderStage.COMPUTE,
         buffer: { type: "uniform" },
       },
       {
         binding: 1,
-        visibility: GPUShaderStage.FRAGMENT | GPUShaderStage.COMPUTE,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: { type: "read-only-storage" },
+      },
+      {
+        binding: 2,
+        visibility: GPUShaderStage.COMPUTE,
         buffer: { type: "storage" },
-      }, // read-write
+      },
     ],
   });
 
-  const bindGroup = device.createBindGroup({
-    label: "BG: View+Cells",
-    layout: bindGroupLayout,
+  // Render: 0=uniform, 1=current(read) for fragment
+  const renderBGL = device.createBindGroupLayout({
+    label: "Render BGL",
     entries: [
-      { binding: 0, resource: { buffer: viewUniformBuffer } },
-      { binding: 1, resource: { buffer: cellsBuffer } },
+      {
+        binding: 0,
+        visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+        buffer: { type: "uniform" },
+      },
+      {
+        binding: 1,
+        visibility: GPUShaderStage.FRAGMENT,
+        buffer: { type: "read-only-storage" },
+      },
     ],
   });
 
-  // Graphics pipeline
+  // ----- Pipelines -----
   const renderPipeline = device.createRenderPipeline({
     label: "Render Pipeline",
-    layout: device.createPipelineLayout({
-      bindGroupLayouts: [bindGroupLayout],
-    }),
+    layout: device.createPipelineLayout({ bindGroupLayouts: [renderBGL] }),
     vertex: { module, entryPoint: "vs" },
     fragment: { module, entryPoint: "fs", targets: [{ format }] },
     primitive: { topology: "triangle-list" },
   });
 
-  // Compute pipeline
   const computePipeline = device.createComputePipeline({
     label: "Compute Pipeline",
-    layout: device.createPipelineLayout({
-      bindGroupLayouts: [bindGroupLayout],
-    }),
+    layout: device.createPipelineLayout({ bindGroupLayouts: [computeBGL] }),
     compute: { module, entryPoint: "cs" },
   });
 
+  // ----- Bind groups (prebuild both directions) -----
+  const computeBG_AtoB = device.createBindGroup({
+    label: "Compute BG A→B",
+    layout: computeBGL,
+    entries: [
+      { binding: 0, resource: { buffer: viewUniformBuffer } },
+      { binding: 1, resource: { buffer: prevCellsBuffer } }, // read
+      { binding: 2, resource: { buffer: nextCellsBuffer } }, // write
+    ],
+  });
+
+  const computeBG_BtoA = device.createBindGroup({
+    label: "Compute BG B→A",
+    layout: computeBGL,
+    entries: [
+      { binding: 0, resource: { buffer: viewUniformBuffer } },
+      { binding: 1, resource: { buffer: nextCellsBuffer } }, // read
+      { binding: 2, resource: { buffer: prevCellsBuffer } }, // write
+    ],
+  });
+
+  const renderBG_showA = device.createBindGroup({
+    label: "Render BG show A",
+    layout: renderBGL,
+    entries: [
+      { binding: 0, resource: { buffer: viewUniformBuffer } },
+      { binding: 1, resource: { buffer: prevCellsBuffer } },
+    ],
+  });
+
+  const renderBG_showB = device.createBindGroup({
+    label: "Render BG show B",
+    layout: renderBGL,
+    entries: [
+      { binding: 0, resource: { buffer: viewUniformBuffer } },
+      { binding: 1, resource: { buffer: nextCellsBuffer } },
+    ],
+  });
+
+  // ----- Render pass descriptor (no explicit typing) -----
   const renderPassDesc = {
     label: "Canvas RenderPass",
     colorAttachments: [
       {
-        // view: set per frame
+        view: undefined, // set per frame
         clearValue: { r: 0, g: 0, b: 0, a: 1 },
         loadOp: "clear",
         storeOp: "store",
@@ -196,30 +229,29 @@ export async function initWebGPU(canvas) {
     ],
   };
 
-  // Workgroup sizes (match @workgroup_size in WGSL)
+  // ----- Dispatch sizes (match @workgroup_size in WGSL) -----
   const WG_X = 16,
     WG_Y = 16;
   const dispatchX = Math.ceil(width / WG_X);
   const dispatchY = Math.ceil(height / WG_Y);
 
+  // ----- Frame loop -----
   let rafId = 0;
   function frame(tMs = 0) {
-    // update time and push uniforms
-    viewF32[4] = tMs * 0.001;
-    flushViewUBO();
+    writeTime(tMs * 0.001);
 
     const encoder = device.createCommandEncoder({ label: "Encoder" });
 
-    // Compute pass updates cells
+    // Compute: prev -> next in chosen direction
     {
       const cpass = encoder.beginComputePass({ label: "Compute Pass" });
       cpass.setPipeline(computePipeline);
-      cpass.setBindGroup(0, bindGroup);
+      cpass.setBindGroup(0, aToB ? computeBG_AtoB : computeBG_BtoA);
       cpass.dispatchWorkgroups(dispatchX, dispatchY, 1);
       cpass.end();
     }
 
-    // Render pass displays cells
+    // Render: show the buffer we just wrote
     renderPassDesc.colorAttachments[0].view = context
       .getCurrentTexture()
       .createView();
@@ -227,21 +259,26 @@ export async function initWebGPU(canvas) {
     {
       const rpass = encoder.beginRenderPass(renderPassDesc);
       rpass.setPipeline(renderPipeline);
-      rpass.setBindGroup(0, bindGroup);
-      rpass.draw(6);
+      rpass.setBindGroup(0, aToB ? renderBG_showB : renderBG_showA);
+      rpass.draw(3); // keep 6 if your VS expects a quad; use 3 for fullscreen triangle VS
       rpass.end();
     }
 
     device.queue.submit([encoder.finish()]);
+
+    // Flip for next frame (no copies, no buffer reassign)
+    aToB = !aToB;
+
     rafId = requestAnimationFrame(frame);
   }
 
   rafId = requestAnimationFrame(frame);
 
-  // Cleanup for React unmount
+  // Cleanup
   return () => {
     cancelAnimationFrame(rafId);
-    canvas.removeEventListener("mousemove", onMouseMove);
-    // (No explicit device/context dispose API needed.)
+    window.removeEventListener("mousemove", onMouseMove);
+    window.removeEventListener("mousedown", onMouseDown);
+    window.removeEventListener("mouseup", onMouseUp);
   };
 }
