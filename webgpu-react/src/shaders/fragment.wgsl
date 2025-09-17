@@ -27,10 +27,11 @@ fn fs(@builtin(position) frag_pos: vec4f) -> @location(0) vec4f {
 
     let terrainColor = getTerrainColor(coord);
 
-    let sunPosition = vec3<f32>(f32(uView.mouse.x), 500, f32(uView.mouse.y));
+    let shadowColor = mix(vec4(0.0, 0.0, 1.0, 1.0), black, 0.75);
+    let sunPosition = vec3<f32>(f32(uView.mouse.x), 300, f32(uView.mouse.y));
     let terrainInShadow = inShadow(coord, sunPosition);
 
-    if(terrainInShadow) { return mix(terrainColor, black, 0.5); }
+    if(terrainInShadow) { return mix(terrainColor, shadowColor, 0.5); }
 
     return terrainColor;
 }

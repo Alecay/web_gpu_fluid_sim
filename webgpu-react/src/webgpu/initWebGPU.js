@@ -61,7 +61,7 @@ export async function initWebGPU(canvas) {
   // Define params
   const maxCellValue = 100.0;
   const terrainHeightMultiplier = 1.0;
-  const colorSteps = 30;
+  const colorSteps = 100;
   const numberOfTerrainColors = 7;
 
   // Create the buffer (32 bytes)
