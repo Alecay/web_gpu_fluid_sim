@@ -1,3 +1,4 @@
+import helpersWGSL from "../shaders/helpers.wgsl?raw";
 import rectWGSL from "../shaders/rect_shader.wgsl?raw";
 import { generateNoiseMap } from "./noise";
 
@@ -26,10 +27,13 @@ export async function initWebGPU(canvas) {
     alphaMode: "opaque",
   });
 
+  let shaderCode = rectWGSL;
+  shaderCode = shaderCode.replace("//{Helpers}", helpersWGSL);
+
   // ----- Shader -----
   const module = device.createShaderModule({
     label: "Rect Shader",
-    code: rectWGSL,
+    code: shaderCode,
   });
 
   // ----- Uniforms (32 bytes total) -----
@@ -60,29 +64,35 @@ export async function initWebGPU(canvas) {
   // Define params
   const maxCellValue = 100.0;
   const terrainHeightMultiplier = 1.0;
-  const colorSteps = 10;
+  const colorSteps = 20;
   const numberOfTerrainColors = 7;
-
-  // Create a Float32Array view
-  // Layout order must match the WGSL struct!
-  const terrainData = new Float32Array([
-    maxCellValue, // f32
-    terrainHeightMultiplier, // f32
-    colorSteps, // reinterpreted as u32
-    numberOfTerrainColors, // reinterpreted as u32
-    0.0,
-    0.0, // padding (vec2<f32>)
-  ]);
 
   // Create the buffer (32 bytes)
   const terrainBufferSize = 32; // must be multiple of 16
+  const arrayBuffer = new ArrayBuffer(terrainBufferSize);
+  const view = new DataView(arrayBuffer);
+
+  // offset in bytes
+  let offset = 0;
+  view.setFloat32(offset, maxCellValue, true);
+  offset += 4;
+  view.setFloat32(offset, terrainHeightMultiplier, true);
+  offset += 4;
+  view.setUint32(offset, colorSteps, true);
+  offset += 4;
+  view.setUint32(offset, numberOfTerrainColors, true);
+  offset += 4;
+  view.setFloat32(offset, 0.0, true);
+  offset += 4; // pad.x
+  view.setFloat32(offset, 0.0, true);
+  offset += 4; // pad.y
+
   const terrainBuffer = device.createBuffer({
     size: terrainBufferSize,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
-  // Upload the data
-  device.queue.writeBuffer(terrainBuffer, 0, terrainData);
+  device.queue.writeBuffer(terrainBuffer, 0, arrayBuffer);
 
   // ----- Mouse handling -----
   function onMouseMove(e) {
@@ -228,7 +238,7 @@ export async function initWebGPU(canvas) {
       },
       {
         binding: 3,
-        visibility: GPUShaderStage.COMPUTE,
+        visibility: GPUShaderStage.FRAGMENT,
         buffer: { type: "uniform" },
       },
     ],
