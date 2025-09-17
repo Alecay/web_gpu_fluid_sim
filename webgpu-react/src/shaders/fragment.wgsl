@@ -6,6 +6,7 @@ fn fs(@builtin(position) frag_pos: vec4f) -> @location(0) vec4f {
 
     let x = u32(clamp(floor(frag_pos.x), 0.0, f32(w - 1u)));
     let y = u32(clamp(floor(frag_pos.y), 0.0, f32(h - 1u)));
+    let coord = vec2(x,y);
 
     let black = vec4f(0.0, 0.0, 0.0, 1.0);
 
@@ -24,7 +25,12 @@ fn fs(@builtin(position) frag_pos: vec4f) -> @location(0) vec4f {
         return black;
     }
 
-    let terrainColor = getTerrainColor(vec2(x,y));
+    let terrainColor = getTerrainColor(coord);
+
+    let sunPosition = vec3<f32>(f32(uView.mouse.x), 500, f32(uView.mouse.y));
+    let terrainInShadow = inShadow(coord, sunPosition);
+
+    if(terrainInShadow) { return mix(terrainColor, black, 0.5); }
 
     return terrainColor;
 }

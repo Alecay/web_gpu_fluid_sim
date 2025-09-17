@@ -6,8 +6,10 @@ export function generateNoiseMap(width, height) {
   // Set noise type, seed, etc.
   noise.SetNoiseType(FastNoiseLite.NoiseType.Perlin);
   noise.SetSeed(42);
-  noise.SetFractalOctaves(5);
+  noise.SetFractalOctaves(6);
+  noise.SetFractalLacunarity(1.7);
   noise.SetFractalGain(0.5);
+  noise.SetFractalType(FastNoiseLite.FractalType.FBm);
   noise.SetFrequency(0.005);
 
   const out = [];

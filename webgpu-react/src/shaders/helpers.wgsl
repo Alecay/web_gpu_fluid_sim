@@ -37,6 +37,14 @@ fn colorLerp(a: vec4f, b: vec4f, t: f32) -> vec4f
   return mix(a, b, clamp(t, 0.0, 1.0));
 }
 
+fn move_towards3(a: vec3<f32>, b: vec3<f32>, step: f32) -> vec3<f32> {
+    let delta = b - a;
+    let d = length(delta);
+    if (d < 1e-6) { return b; }
+    let t = clamp(step / d, 0.0, 1.0);
+    return mix(a, b, t);
+}
+
 // Sample gradient array (terrainColorsBuf.items[0..N-1]) at t∈[0,1]
 fn terrainColorLerp(t: f32) -> vec4f {
   let n = uTerrain.numberOfTerrainColors;
@@ -99,4 +107,39 @@ fn getTerrainColor(coord: vec2<u32>) -> vec4f {
   }
 
   return color;
+}
+
+fn distToGround(pos : vec3<f32>) -> f32
+{
+  let x = u32(round(pos.x));
+  let y = u32(round(pos.z));
+  let height = roundedCellHeight(vec2<u32>(x,y));
+  let dist = f32(pos.y - height);
+
+  return dist;
+}
+
+fn inShadow(coord : vec2<u32>, sunPosition : vec3<f32>) -> bool
+{
+  let rayTarget = vec3<f32>(f32(coord.x), roundedCellHeight(coord), f32(coord.y));
+  var currentPos = sunPosition;
+
+  for (var i = 0; i < 1920; i += 1) 
+  {
+    if(distance(currentPos, rayTarget) < 1e-6)
+    {
+      return false;
+    }
+    
+    let distG = distToGround(currentPos);
+    if(distG <= -1e-3) 
+    { 
+      return true;
+    }
+
+    let nextPosition = move_towards3(currentPos, rayTarget, f32(max(1, distG)));
+    currentPos = nextPosition;    
+  }
+
+  return false;
 }
