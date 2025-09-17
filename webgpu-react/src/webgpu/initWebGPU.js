@@ -1,6 +1,5 @@
-import helpersWGSL from "../shaders/helpers.wgsl?raw";
-import rectWGSL from "../shaders/rect_shader.wgsl?raw";
 import { generateNoiseMap } from "./noise";
+import { getShaderText } from "./shaderBuilder";
 
 export async function initWebGPU(canvas) {
   if (!canvas) return () => {};
@@ -27,9 +26,7 @@ export async function initWebGPU(canvas) {
     alphaMode: "opaque",
   });
 
-  let shaderCode = rectWGSL;
-  shaderCode = shaderCode.replace("//{Helpers}", helpersWGSL);
-
+  let shaderCode = getShaderText();
   // ----- Shader -----
   const module = device.createShaderModule({
     label: "Rect Shader",
@@ -254,9 +251,9 @@ export async function initWebGPU(canvas) {
   });
 
   const computePipeline = device.createComputePipeline({
-    label: "Compute Pipeline",
+    label: "Step Compute Pipeline",
     layout: device.createPipelineLayout({ bindGroupLayouts: [computeBGL] }),
-    compute: { module, entryPoint: "cs" },
+    compute: { module, entryPoint: "step" },
   });
 
   // ----- Bind groups (prebuild both directions) -----

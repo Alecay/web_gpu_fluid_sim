@@ -26,6 +26,12 @@ fn cellHeight(coord: vec2<u32>) -> f32 {
   return currentCells[idx(coord.x, coord.y)].height;
 }
 
+fn roundedCellHeight(coord: vec2<u32>) -> f32 {
+  let maxHeight = i32(round(uTerrain.maxCellValue * uTerrain.terrainHeightMultiplier));
+  let steps = max(1, i32(uTerrain.colorSteps)); // avoid div by zero
+  return roundToStep(cellHeight(coord), f32(maxHeight) / f32(steps));
+}
+
 fn colorLerp(a: vec4f, b: vec4f, t: f32) -> vec4f 
 {
   return mix(a, b, clamp(t, 0.0, 1.0));
@@ -50,52 +56,46 @@ fn terrainColorLerp(t: f32) -> vec4f {
 fn getTerrainColor(coord: vec2<u32>) -> vec4f {
   var color = vec4f(0.0, 0.0, 0.0, 0.0); // CLEAR
 
-  let h = cellHeight(coord);
+  let h = roundedCellHeight(coord);
   if (h >= 0.0) {
     let maxHeight = i32(round(uTerrain.maxCellValue * uTerrain.terrainHeightMultiplier));
-    let steps     = max(1, i32(uTerrain.colorSteps));                  // avoid div by zero
-    let step      = max(1, maxHeight / steps);                         // integer step (like HLSL)
-    let rh = roundToStep(h, f32(maxHeight) / f32(steps));
+    color = terrainColorLerp(h / f32(maxHeight));
 
-    // integer bucket and normalized t in [0,1]
-    let colorIndex = i32(h) / step;
-    let t          = f32(colorIndex) / f32(step);
+    let black = vec4f(0.0, 0.0, 0.0, 1.0);
+    let white = vec4f(1.0, 1.0, 1.0, 1.0);
 
-    color = terrainColorLerp(rh / f32(maxHeight));
+    let darkT  : f32 = 0.35;
+    let lightT : f32 = 0.10;
+    var changed = false;
 
-    //return terrainColors[1];
+    // check north neighbor first
+    {
+      let nCoord = coord + vec2<u32>(0u, 1u);
+      if (inBounds(nCoord.x, nCoord.y)) {
+        let nValue = roundedCellHeight(nCoord);
 
-    // let darkT  : f32 = 0.35;
-    // let lightT : f32 = 0.10;
-    // var changed = false;
+        if (nValue > h) {
+          color   = colorLerp(color, black, darkT);
+          changed = true;
+        } else if (nValue < h) {
+          color   = colorLerp(color, white, lightT);
+          changed = true;
+        }
+      }
+    }
 
-    // // check north neighbor first
-    // {
-    //   let nCoord = coord + vec2<u32>(0u, 1u);
-    //   if (inBounds(nCoord.x, nCoord.y)) {
-    //     let nValue = cellHeight(nCoord);
-    //     if (nValue > h) {
-    //       color   = colorLerp(color, vec4f(0.0, 0.0, 0.0, 1.0), darkT);
-    //       changed = true;
-    //     } else if (nValue < h) {
-    //       color   = colorLerp(color, vec4f(1.0, 1.0, 1.0, 1.0), lightT);
-    //       changed = true;
-    //     }
-    //   }
-    // }
-
-    // // then east neighbor if not changed
-    // if (!changed) {
-    //   let nCoord = coord + vec2<u32>(1u, 0u);
-    //   if (inBounds(nCoord.x, nCoord.y)) {
-    //     let nValue = cellHeight(nCoord);
-    //     if (nValue > h) {
-    //       color = colorLerp(color, vec4f(0.0, 0.0, 0.0, 1.0), darkT);
-    //     } else if (nValue < h) {
-    //       color = colorLerp(color, vec4f(1.0, 1.0, 1.0, 1.0), lightT);
-    //     }
-    //   }
-    // }
+    // then east neighbor if not changed
+    if (!changed) {
+      let nCoord = coord + vec2<u32>(1u, 0u);
+      if (inBounds(nCoord.x, nCoord.y)) {
+        let nValue = roundedCellHeight(nCoord);
+        if (nValue > h) {
+          color = colorLerp(color, black, darkT);
+        } else if (nValue < h) {
+          color = colorLerp(color, white, lightT);
+        }
+      }
+    }
   }
 
   return color;
