@@ -25,13 +25,27 @@ fn fs(@builtin(position) frag_pos: vec4f) -> @location(0) vec4f {
         return black;
     }
 
-    let terrainColor = getTerrainColor(coord);
+    var terrainColor = getTerrainColor(coord);
 
     let shadowColor = mix(vec4(0.0, 0.0, 1.0, 1.0), black, 0.75);
     let sunPosition = vec3<f32>(f32(uView.mouse.x), 300, f32(uView.mouse.y));
     let terrainInShadow = inShadow(coord, sunPosition);
+    
+    // Get surface normal shadows
+    var sNorm = surfaceNormalSobel(coord);
+    // sNorm = sNorm / sNorm;
+    let terrainPos = vec3<f32>(f32(coord.x), roundedCellHeight(coord), f32(coord.y));
+    let lightDir = normalize(sunPosition - terrainPos);
+    let shade = clamp(max(dot(sNorm, lightDir), 0.0) + 0.95, 0.0, 1.0);
 
-    if(terrainInShadow) { return mix(terrainColor, shadowColor, 0.5); }
+
+    if(terrainInShadow) { terrainColor = mix(terrainColor, shadowColor, 0.5); }
+
+    terrainColor = vec4<f32>(terrainColor.r * shade, terrainColor.g * shade, terrainColor.b * shade, terrainColor.a);
+
+
+    
+    //let ds = dot(sNorm,)
 
     return terrainColor;
 }

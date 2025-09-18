@@ -10,7 +10,7 @@ export function generateNoiseMap(width, height) {
   noise.SetFractalLacunarity(1.7);
   noise.SetFractalGain(0.5);
   noise.SetFractalType(FastNoiseLite.FractalType.FBm);
-  noise.SetFrequency(0.005);
+  noise.SetFrequency(0.003);
 
   const out = [];
   for (let y = 0; y < height; y++) {

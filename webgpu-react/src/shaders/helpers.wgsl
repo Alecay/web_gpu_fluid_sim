@@ -22,11 +22,20 @@ fn inBounds(x:u32, y:u32) -> bool
   return (x < uView.size.x) && (y < uView.size.y);
 }
 
+fn clampCoord(coord: vec2<u32>) -> vec2<u32> {
+  let cx = clamp(coord.x, 0u, u32(uView.size.x) - 1u);
+  let cy = clamp(coord.y, 0u, u32(uView.size.y) - 1u);
+  return vec2<u32>(u32(cx), u32(cy));
+}
+
 fn cellHeight(coord: vec2<u32>) -> f32 {
-  return currentCells[idx(coord.x, coord.y)].height;
+  let cCoord = clampCoord(coord);
+  return currentCells[idx(cCoord.x, cCoord.y)].height;
 }
 
 fn roundedCellHeight(coord: vec2<u32>) -> f32 {
+  if(uTerrain.colorSteps <= 0u) { return cellHeight(coord); }
+
   let maxHeight = i32(round(uTerrain.maxCellValue * uTerrain.terrainHeightMultiplier));
   let steps = max(1, i32(uTerrain.colorSteps)); // avoid div by zero
   return roundToStep(cellHeight(coord), f32(maxHeight) / f32(steps));
@@ -43,6 +52,34 @@ fn move_towards3(a: vec3<f32>, b: vec3<f32>, step: f32) -> vec3<f32> {
     if (d < 1e-6) { return b; }
     let t = clamp(step / d, 0.0, 1.0);
     return mix(a, b, t);
+}
+
+// ----------- Sobel normal (8 taps, smoother) -----------
+fn surfaceNormalSobel(coord: vec2<u32>) -> vec3<f32> {
+  let x = u32(coord.x);
+  let y = u32(coord.y);
+
+  let hL  = roundedCellHeight(vec2<u32>(x - 1, y));
+  let hR  = roundedCellHeight(vec2<u32>(x + 1, y));
+  let hD  = roundedCellHeight(vec2<u32>(x, y - 1));
+  let hU  = roundedCellHeight(vec2<u32>(x, y + 1));
+  let hLU = roundedCellHeight(vec2<u32>(x - 1, y + 1));
+  let hLD = roundedCellHeight(vec2<u32>(x - 1, y - 1));
+  let hRU = roundedCellHeight(vec2<u32>(x + 1, y + 1));
+  let hRD = roundedCellHeight(vec2<u32>(x + 1, y - 1));
+
+  // Sobel kernels
+  let gx = (hLD + 2.0 * hL + hLU) - (hRD + 2.0 * hR + hRU);
+  let gz = (hRU + 2.0 * hU + hLU) - (hRD + 2.0 * hD + hLD);
+
+  // Scale to world units (kernel sum factor = 8)
+  let inv8dx = uTerrain.maxCellValue / (8.0 * 1.0);
+  let inv8dz = inv8dx;
+
+  let dHx = gx * inv8dx;
+  let dHz = gz * inv8dz;
+
+  return normalize(vec3(-dHx, 1.0, -dHz));
 }
 
 // Sample gradient array (terrainColorsBuf.items[0..N-1]) at t∈[0,1]
@@ -76,34 +113,34 @@ fn getTerrainColor(coord: vec2<u32>) -> vec4f {
     let lightT : f32 = 0.10;
     var changed = false;
 
-    // check north neighbor first
-    {
-      let nCoord = coord + vec2<u32>(0u, 1u);
-      if (inBounds(nCoord.x, nCoord.y)) {
-        let nValue = roundedCellHeight(nCoord);
+    // // check north neighbor first
+    // {
+    //   let nCoord = coord + vec2<u32>(0u, 1u);
+    //   if (inBounds(nCoord.x, nCoord.y)) {
+    //     let nValue = roundedCellHeight(nCoord);
 
-        if (nValue > h) {
-          color   = colorLerp(color, black, darkT);
-          changed = true;
-        } else if (nValue < h) {
-          color   = colorLerp(color, white, lightT);
-          changed = true;
-        }
-      }
-    }
+    //     if (nValue < h) {
+    //       color   = colorLerp(color, black, darkT);
+    //       changed = true;
+    //     } else if (nValue > h) {
+    //       color   = colorLerp(color, white, lightT);
+    //       changed = true;
+    //     }
+    //   }
+    // }
 
-    // then east neighbor if not changed
-    if (!changed) {
-      let nCoord = coord + vec2<u32>(1u, 0u);
-      if (inBounds(nCoord.x, nCoord.y)) {
-        let nValue = roundedCellHeight(nCoord);
-        if (nValue > h) {
-          color = colorLerp(color, black, darkT);
-        } else if (nValue < h) {
-          color = colorLerp(color, white, lightT);
-        }
-      }
-    }
+    // // then east neighbor if not changed
+    // if (!changed) {
+    //   let nCoord = coord + vec2<u32>(1u, 0u);
+    //   if (inBounds(nCoord.x, nCoord.y)) {
+    //     let nValue = roundedCellHeight(nCoord);
+    //     if (nValue < h) {
+    //       color = colorLerp(color, black, darkT);
+    //     } else if (nValue > h) {
+    //       color = colorLerp(color, white, lightT);
+    //     }
+    //   }
+    // }
   }
 
   return color;
@@ -124,6 +161,8 @@ fn inShadow(coord : vec2<u32>, sunPosition : vec3<f32>) -> bool
   let rayTarget = vec3<f32>(f32(coord.x), roundedCellHeight(coord), f32(coord.y));
   var currentPos = sunPosition;
 
+  let accuracy = f32(2.0);
+
   for (var i = 0; i < 1920; i += 1) 
   {
     if(distance(currentPos, rayTarget) < 1e-6)
@@ -137,7 +176,7 @@ fn inShadow(coord : vec2<u32>, sunPosition : vec3<f32>) -> bool
       return true;
     }
 
-    let nextPosition = move_towards3(currentPos, rayTarget, f32(max(1, distG)));
+    let nextPosition = move_towards3(currentPos, rayTarget, f32(max(1, distG / accuracy)));
     currentPos = nextPosition;    
   }
 
