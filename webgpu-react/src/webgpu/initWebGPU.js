@@ -1,7 +1,11 @@
 import { generateNoiseMap } from "./noise";
 import { getShaderText } from "./shaderBuilder";
+import { defaultNoiseUISettings } from "../components/NoiseSettingsForm";
 
-export async function initWebGPU(canvas) {
+export async function initWebGPU(
+  canvas,
+  noiseSettings = defaultNoiseUISettings
+) {
   if (!canvas) return () => {};
 
   const adapter = await navigator.gpu?.requestAdapter();
@@ -15,8 +19,24 @@ export async function initWebGPU(canvas) {
   const format = navigator.gpu.getPreferredCanvasFormat();
 
   // Fixed drawing buffer; CSS size can differ
-  const width = 1920;
-  const height = 1080;
+  const width = noiseSettings.width;
+  const height = noiseSettings.height;
+  // Define params
+  const maxCellValue = noiseSettings.maxCellValue;
+  const terrainHeightMultiplier = noiseSettings.terrainHeightMultiplier;
+  const colorSteps = noiseSettings.colorSteps;
+  const numberOfTerrainColors = noiseSettings.numberOfTerrainColors;
+
+  const terrainColors = [
+    "rgb(77, 73, 73)",
+    "rgb(130, 124, 116)",
+    "rgb(190, 147, 90)",
+    "rgb(173, 110, 27)",
+    "rgb(61, 104, 65)",
+    "rgb(27, 70, 31)",
+    "rgb(255, 255, 255)",
+  ];
+
   canvas.width = width;
   canvas.height = height;
 
@@ -57,12 +77,6 @@ export async function initWebGPU(canvas) {
     device.queue.writeBuffer(viewUniformBuffer, 0, viewUBO);
   }
   flushViewUBO();
-
-  // Define params
-  const maxCellValue = 100.0;
-  const terrainHeightMultiplier = 0.85;
-  const colorSteps = 25;
-  const numberOfTerrainColors = 7;
 
   // Create the buffer (32 bytes)
   const terrainBufferSize = 32; // must be multiple of 16
@@ -139,7 +153,17 @@ export async function initWebGPU(canvas) {
   // Initialize both (optional)
   {
     const init = new Float32Array(cellsBufferSize / 4);
-    const noiseData = generateNoiseMap(width, height);
+    const noiseData = generateNoiseMap(
+      noiseSettings.seed,
+      width,
+      height,
+      noiseSettings.noiseType,
+      noiseSettings.fractalOctaves,
+      noiseSettings.fractalLacunarity,
+      noiseSettings.fractalGain,
+      noiseSettings.fractalType,
+      noiseSettings.frequency
+    );
 
     for (let index = 0; index < noiseData.length; index++) {
       const cellIndex = index * 4;
@@ -151,16 +175,6 @@ export async function initWebGPU(canvas) {
   }
 
   // Terrain Color buffer
-
-  const terrainColors = [
-    "rgb(77, 73, 73)",
-    "rgb(130, 124, 116)",
-    "rgb(190, 147, 90)",
-    "rgb(173, 110, 27)",
-    "rgb(61, 104, 65)",
-    "rgb(27, 70, 31)",
-    "rgb(255, 255, 255)",
-  ];
   function colorsToFloatArray(colors) {
     const floats = [];
 

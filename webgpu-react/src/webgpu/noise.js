@@ -1,16 +1,26 @@
 import FastNoiseLite from "fastnoise-lite";
 
-export function generateNoiseMap(width, height) {
+export function generateNoiseMap(
+  seed = 42,
+  width = 1920,
+  height = 1080,
+  noiseType = FastNoiseLite.NoiseType.Perlin,
+  octaves = 6,
+  lacunarity = 1.7,
+  gain = 0.5,
+  fractalType = FastNoiseLite.FractalType.FBm,
+  frequency = 0.003
+) {
   const noise = new FastNoiseLite();
 
   // Set noise type, seed, etc.
-  noise.SetNoiseType(FastNoiseLite.NoiseType.Perlin);
-  noise.SetSeed(42);
-  noise.SetFractalOctaves(6);
-  noise.SetFractalLacunarity(1.7);
-  noise.SetFractalGain(0.5);
-  noise.SetFractalType(FastNoiseLite.FractalType.FBm);
-  noise.SetFrequency(0.003);
+  noise.SetNoiseType(noiseType);
+  noise.SetSeed(seed);
+  noise.SetFractalOctaves(octaves);
+  noise.SetFractalLacunarity(lacunarity);
+  noise.SetFractalGain(gain);
+  noise.SetFractalType(fractalType);
+  noise.SetFrequency(frequency);
 
   const out = [];
   for (let y = 0; y < height; y++) {
