@@ -22,11 +22,16 @@ export default function App() {
           <h1>Web GPU Terrain</h1>
         </Col>
       </Row>
-      <Row>
+      <Row className="justify-content-center">
         <Col style={{ margin: "30px" }}>
           {/* Canvas fills width; drawing buffer is set inside init */}
           <WebGPUCanvas
-            style={{ width: "100%", display: "block" }}
+            style={{
+              width: "100%",
+              display: "block",
+              maxHeight: "80vh",
+              maxWidth: "100vw",
+            }}
             noiseSettings={settings}
           />
           <div id="output" />

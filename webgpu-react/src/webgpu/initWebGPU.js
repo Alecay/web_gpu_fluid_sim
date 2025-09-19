@@ -1,3 +1,4 @@
+import { getDevice } from "./gpu";
 import { generateNoiseMap } from "./noise";
 import { getShaderText } from "./shaderBuilder";
 import { defaultNoiseUISettings } from "../components/NoiseSettingsForm";
@@ -8,15 +9,21 @@ export async function initWebGPU(
 ) {
   if (!canvas) return () => {};
 
-  const adapter = await navigator.gpu?.requestAdapter();
-  const device = await adapter?.requestDevice();
-  if (!device) {
-    alert("Need a browser that supports WebGPU");
-    return () => {};
+  // Kill any previous loop/listeners tied to this canvas
+  if (canvas.__wgpuCleanup) {
+    canvas.__wgpuCleanup(); // stop old RAF, remove listeners
   }
+
+  const device = await getDevice();
+  // console.log("Using WebGPU device:", device.__id);
 
   const context = canvas.getContext("webgpu");
   const format = navigator.gpu.getPreferredCanvasFormat();
+
+  canvas.style.imageRendering = "pixelated";
+
+  // Tag the context with this device id so we can assert later
+  context.__deviceId = device.__id;
 
   // Fixed drawing buffer; CSS size can differ
   const width = noiseSettings.width;
@@ -27,15 +34,7 @@ export async function initWebGPU(
   const colorSteps = noiseSettings.colorSteps;
   const numberOfTerrainColors = noiseSettings.numberOfTerrainColors;
 
-  const terrainColors = [
-    "rgb(77, 73, 73)",
-    "rgb(130, 124, 116)",
-    "rgb(190, 147, 90)",
-    "rgb(173, 110, 27)",
-    "rgb(61, 104, 65)",
-    "rgb(27, 70, 31)",
-    "rgb(255, 255, 255)",
-  ];
+  const terrainColors = noiseSettings.colors;
 
   canvas.width = width;
   canvas.height = height;
@@ -126,7 +125,8 @@ export async function initWebGPU(
   }
 
   window.addEventListener("mousemove", onMouseMove);
-  window.addEventListener("mousedown", onMouseDown);
+  // Canvas mouse down to avoid clicks outside the game bounds
+  canvas.addEventListener("mousedown", onMouseDown);
   window.addEventListener("mouseup", onMouseUp);
 
   function writeTime(tSeconds) {
@@ -193,6 +193,33 @@ export async function initWebGPU(
     return new Float32Array(floats);
   }
 
+  // Terrain Color buffer from hex codes
+  function hexColorsToFloatArray(colors) {
+    const floats = [];
+
+    for (let color of colors) {
+      // Normalize shorthand #RGB → #RRGGBB
+      if (/^#([0-9a-fA-F]{3})$/.test(color)) {
+        color = color.replace(
+          /^#([0-9a-fA-F])([0-9a-fA-F])([0-9a-fA-F])$/,
+          "#$1$1$2$2$3$3"
+        );
+      }
+
+      const match = color.match(/^#([0-9a-fA-F]{6})$/);
+      if (!match) continue;
+
+      const hex = match[1];
+      const r = parseInt(hex.slice(0, 2), 16) / 255.0;
+      const g = parseInt(hex.slice(2, 4), 16) / 255.0;
+      const b = parseInt(hex.slice(4, 6), 16) / 255.0;
+
+      floats.push(r, g, b, 1.0); // RGBA, with alpha=1
+    }
+
+    return new Float32Array(floats);
+  }
+
   const terrainColorsBuffer = device.createBuffer({
     label: "Terrain Colors Buffer",
     size: terrainColors.length * 16,
@@ -202,7 +229,7 @@ export async function initWebGPU(
   device.queue.writeBuffer(
     terrainColorsBuffer,
     0,
-    colorsToFloatArray(terrainColors)
+    hexColorsToFloatArray(terrainColors)
   );
 
   // ----- Bind group layouts -----
@@ -335,7 +362,10 @@ export async function initWebGPU(
   // ----- Frame loop -----
   let aToB = true; // true => compute uses A->B and we render B this frame
   let rafId = 0;
-  function frame(tMs = 0) {
+  async function frame(tMs = 0) {
+    if (context.__deviceId !== device.__id) return;
+
+    await device.pushErrorScope("validation");
     writeTime(tMs * 0.001);
 
     const encoder = device.createCommandEncoder({ label: "Encoder" });
@@ -364,6 +394,9 @@ export async function initWebGPU(
 
     device.queue.submit([encoder.finish()]);
 
+    const err = await device.popErrorScope();
+    if (err) console.error("Validation error:", err.message);
+
     // Flip for next frame (no copies, no buffer reassign)
     aToB = !aToB;
 
@@ -372,11 +405,14 @@ export async function initWebGPU(
 
   rafId = requestAnimationFrame(frame);
 
-  // Cleanup
-  return () => {
+  const cleanup = () => {
     cancelAnimationFrame(rafId);
     window.removeEventListener("mousemove", onMouseMove);
-    window.removeEventListener("mousedown", onMouseDown);
+    canvas.removeEventListener("mousedown", onMouseDown);
     window.removeEventListener("mouseup", onMouseUp);
   };
+  canvas.__wgpuCleanup = cleanup;
+
+  // Also return cleanup so caller can manually stop if needed
+  return cleanup;
 }

@@ -15,7 +15,8 @@
     "resolveJsonModule": true,
     "isolatedModules": true, // <-- Vite/esbuild friendly
     "baseUrl": ".",
-    "paths": { "@/*": ["src/*"] }
+    "paths": { "@/*": ["src/*"] },
+    "types": ["@webgpu/types"]
   },
   "include": ["src", "vite.config.ts", "env.d.ts"]
 }

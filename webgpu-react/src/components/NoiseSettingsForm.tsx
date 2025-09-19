@@ -135,6 +135,46 @@ export default function NoiseSettingsForm({
         <Card.Title className="mb-3">{title}</Card.Title>
 
         {/* Noise section */}
+        <h6 className="text-muted mb-2">Canvas</h6>
+        <Row className="g-3">
+          <Col md={6} lg={4}>
+            <Form.Group controlId="width">
+              <Form.Label>Width</Form.Label>
+              <Form.Control
+                type="number"
+                min={1}
+                value={settings.width}
+                onChange={(e) =>
+                  set(
+                    "width",
+                    Math.max(1, parseInt(e.currentTarget.value || "1", 10))
+                  )
+                }
+              />
+              <Form.Text muted>Width in pixels of the map.</Form.Text>
+            </Form.Group>
+          </Col>
+          <Col md={6} lg={4}>
+            <Form.Group controlId="height">
+              <Form.Label>Height</Form.Label>
+              <Form.Control
+                type="number"
+                min={1}
+                value={settings.height}
+                onChange={(e) =>
+                  set(
+                    "height",
+                    Math.max(1, parseInt(e.currentTarget.value || "1", 10))
+                  )
+                }
+              />
+              <Form.Text muted>Height in pixels of the map.</Form.Text>
+            </Form.Group>
+          </Col>
+        </Row>
+
+        <hr className="my-4" />
+
         <h6 className="text-muted mb-2">Noise</h6>
         <Row className="g-3">
           <Col md={6} lg={4}>
@@ -262,41 +302,8 @@ export default function NoiseSettingsForm({
         <h6 className="text-muted mb-2">Render / Terrain</h6>
         <Row className="g-3">
           <Col md={6} lg={4}>
-            <Form.Group controlId="width">
-              <Form.Label>Width (px)</Form.Label>
-              <Form.Control
-                type="number"
-                min={1}
-                value={settings.width}
-                onChange={(e) =>
-                  set(
-                    "width",
-                    Math.max(1, parseInt(e.currentTarget.value || "1", 10))
-                  )
-                }
-              />
-            </Form.Group>
-          </Col>
-          <Col md={6} lg={4}>
-            <Form.Group controlId="height">
-              <Form.Label>Height (px)</Form.Label>
-              <Form.Control
-                type="number"
-                min={1}
-                value={settings.height}
-                onChange={(e) =>
-                  set(
-                    "height",
-                    Math.max(1, parseInt(e.currentTarget.value || "1", 10))
-                  )
-                }
-              />
-            </Form.Group>
-          </Col>
-
-          <Col md={6} lg={4}>
             <Form.Group controlId="maxCellValue">
-              <Form.Label>Max Cell Value</Form.Label>
+              <Form.Label>Max Terrain Height</Form.Label>
               <Form.Control
                 type="number"
                 step="0.1"
@@ -306,6 +313,9 @@ export default function NoiseSettingsForm({
                 }
               />
             </Form.Group>
+            <Form.Text muted>
+              The maximum terrain height of any cell in the map.
+            </Form.Text>
           </Col>
 
           <Col md={6} lg={4}>
@@ -323,11 +333,14 @@ export default function NoiseSettingsForm({
                 }
               />
             </Form.Group>
+            <Form.Text muted>
+              A multiplier used to scale the overall terrain height.
+            </Form.Text>
           </Col>
 
           <Col md={6} lg={4}>
             <Form.Group controlId="colorSteps">
-              <Form.Label>Color Steps</Form.Label>
+              <Form.Label>Terrain Steps</Form.Label>
               <Form.Control
                 type="number"
                 min={1}
@@ -340,6 +353,9 @@ export default function NoiseSettingsForm({
                 }
               />
             </Form.Group>
+            <Form.Text muted>
+              How many steps or terraces should the terrain have.
+            </Form.Text>
           </Col>
 
           <Col md={6} lg={4}>
@@ -361,7 +377,7 @@ export default function NoiseSettingsForm({
                 }
               />
               <Form.Text muted>
-                Palette editor below will match this count.
+                Gradient editor below will match this count.
               </Form.Text>
             </Form.Group>
           </Col>
@@ -369,15 +385,19 @@ export default function NoiseSettingsForm({
 
         {/* Colors */}
         <div className="mt-4">
-          <h6 className="text-muted mb-2">Palette</h6>
+          <h6 className="text-muted mb-2">Terrain Gradient</h6>
           <Row className="g-3">
             {settings.colors.map((c, i) => (
               <Col key={i} xs={3} sm={2} md={1} lg={1}>
                 <Form.Group controlId={`color-${i}`}>
-                  <Form.Label>Color {i + 1}</Form.Label>
+                  {/* <Form.Label>Color {i + 1}</Form.Label> */}
                   <Form.Control
                     type="color"
                     value={c}
+                    style={{
+                      width: "50px",
+                      height: "50px",
+                    }}
                     onChange={(e) => {
                       const hex = e.currentTarget.value;
                       set(
