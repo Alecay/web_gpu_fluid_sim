@@ -1,10 +1,15 @@
 struct View {
     size      : vec2<u32>, // width, height (pixels)
-    mouse     : vec2<u32>, // mouse x, y (pixels)
     time      : f32,       // seconds
-    mouseHeld : f32,       // 0 or 1
-    _pad1     : f32,
-    _pad2     : f32,
+    _pad0     : f32,
+};
+
+struct Input {
+    mousePos         : vec2<u32>, // mouse x, y (pixels)
+    mouse0Held     : f32,       // 0 or 1
+    mouse1Held     : f32,       // 0 or 1
+    mouseRadius   : f32,
+    _pad0     : vec3<f32>,
 };
 
 struct CellData {

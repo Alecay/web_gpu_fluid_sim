@@ -17,10 +17,9 @@ fn fs(@builtin(position) frag_pos: vec4f) -> @location(0) vec4f {
     // }
 
     // Draw a ring cursor (visual only)
-    let mouseRadius = 30.0;
     let mouseWidth  = 3.0;
-    let inOuter = inside_circle(vec2<u32>(x,y), uView.mouse, mouseRadius);
-    let inInner = inside_circle(vec2<u32>(x,y), uView.mouse, mouseRadius - mouseWidth);
+    let inOuter = inside_circle(vec2<u32>(x,y), uInput.mousePos, uInput.mouseRadius);
+    let inInner = inside_circle(vec2<u32>(x,y), uInput.mousePos, uInput.mouseRadius - mouseWidth);
     if (inOuter && !inInner) {
         return black;
     }
@@ -28,7 +27,7 @@ fn fs(@builtin(position) frag_pos: vec4f) -> @location(0) vec4f {
     var terrainColor = getTerrainColor(coord);
 
     let shadowColor = mix(vec4(0.0, 0.0, 1.0, 1.0), black, 0.75);
-    let sunPosition = vec3<f32>(f32(uView.mouse.x), 300, f32(uView.mouse.y));
+    let sunPosition = vec3<f32>(f32(uInput.mousePos.x), 300, f32(uInput.mousePos.y));
     let terrainInShadow = inShadow(coord, sunPosition);
     
     // Get surface normal shadows

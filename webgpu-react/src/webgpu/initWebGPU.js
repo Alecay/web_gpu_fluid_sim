@@ -2,6 +2,12 @@ import { getDevice } from "./gpu";
 import { generateNoiseMap } from "./noise";
 import { getShaderText } from "./shaderBuilder";
 import { defaultNoiseUISettings } from "../components/NoiseSettingsForm";
+import {
+  createOrUpdateTerrainColorsBuffer,
+  createOrUpdateTerrainParamsBuffer,
+} from "./terrainBuffer";
+import { createOrUpdateViewBuffer } from "./viewBuffer";
+import { createOrUpdateInputBuffer } from "./inputBuffer";
 
 export async function initWebGPU(
   canvas,
@@ -25,19 +31,8 @@ export async function initWebGPU(
   // Tag the context with this device id so we can assert later
   context.__deviceId = device.__id;
 
-  // Fixed drawing buffer; CSS size can differ
-  const width = noiseSettings.width;
-  const height = noiseSettings.height;
-  // Define params
-  const maxCellValue = noiseSettings.maxCellValue;
-  const terrainHeightMultiplier = noiseSettings.terrainHeightMultiplier;
-  const colorSteps = noiseSettings.colorSteps;
-  const numberOfTerrainColors = noiseSettings.numberOfTerrainColors;
-
-  const terrainColors = noiseSettings.colors;
-
-  canvas.width = width;
-  canvas.height = height;
+  canvas.width = noiseSettings.width;
+  canvas.height = noiseSettings.height;
 
   context.configure({
     device,
@@ -52,57 +47,38 @@ export async function initWebGPU(
     code: shaderCode,
   });
 
-  // ----- Uniforms (32 bytes total) -----
-  // Layout (each 4 bytes):
-  // [0]=w(u32), [1]=h(u32), [2]=mouseX(u32), [3]=mouseY(u32),
-  // [4]=time(f32), [5]=mouseHeld(f32), [6],[7]=padding
-  const viewUBO = new ArrayBuffer(32);
-  const viewU32 = new Uint32Array(viewUBO);
-  const viewF32 = new Float32Array(viewUBO);
-  viewU32[0] = width;
-  viewU32[1] = height;
-  viewU32[2] = 0;
-  viewU32[3] = 0;
-  viewF32[4] = 0.0;
-  viewF32[5] = 0.0;
+  var mousePosition = { x: 0, y: 0 };
+  var mouse0Held = false;
+  var mouse1Held = false;
+  var mouseRadius = 30;
 
-  const viewUniformBuffer = device.createBuffer({
-    label: "View Uniform",
-    size: 32,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  const viewUniformBuffer = createOrUpdateViewBuffer(device, {
+    width: noiseSettings.width,
+    height: noiseSettings.height,
+    time: 0,
   });
 
-  function flushViewUBO() {
-    device.queue.writeBuffer(viewUniformBuffer, 0, viewUBO);
-  }
-  flushViewUBO();
-
-  // Create the buffer (32 bytes)
-  const terrainBufferSize = 32; // must be multiple of 16
-  const arrayBuffer = new ArrayBuffer(terrainBufferSize);
-  const view = new DataView(arrayBuffer);
-
-  // offset in bytes
-  let offset = 0;
-  view.setFloat32(offset, maxCellValue, true);
-  offset += 4;
-  view.setFloat32(offset, terrainHeightMultiplier, true);
-  offset += 4;
-  view.setUint32(offset, colorSteps, true);
-  offset += 4;
-  view.setUint32(offset, numberOfTerrainColors, true);
-  offset += 4;
-  view.setFloat32(offset, 0.0, true);
-  offset += 4; // pad.x
-  view.setFloat32(offset, 0.0, true);
-  offset += 4; // pad.y
-
-  const terrainBuffer = device.createBuffer({
-    size: terrainBufferSize,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  const inputUniformBuffer = createOrUpdateInputBuffer(device, {
+    mousePos: mousePosition,
+    mouse0Held: mouse0Held,
+    mouse1Held: mouse1Held,
+    mouseRadius: mouseRadius,
   });
 
-  device.queue.writeBuffer(terrainBuffer, 0, arrayBuffer);
+  const terrainBuffer = createOrUpdateTerrainParamsBuffer(
+    device,
+    {
+      maxCellValue: noiseSettings.maxCellValue,
+      terrainHeightMultiplier: noiseSettings.terrainHeightMultiplier,
+      colorSteps: noiseSettings.colorSteps,
+    },
+    noiseSettings.colors // array of hex/rgb strings you already use
+  );
+
+  const terrainColorsBuffer = createOrUpdateTerrainColorsBuffer(
+    device,
+    noiseSettings.colors
+  );
 
   // ----- Mouse handling -----
   function onMouseMove(e) {
@@ -111,32 +87,72 @@ export async function initWebGPU(
     const scaleY = canvas.height / rect.height;
     const mx = Math.floor((e.clientX - rect.left) * scaleX);
     const my = Math.floor((e.clientY - rect.top) * scaleY);
-    viewU32[2] = Math.min(Math.max(mx, 0), width - 1);
-    viewU32[3] = Math.min(Math.max(my, 0), height - 1);
-    flushViewUBO();
+    mousePosition = {
+      x: Math.min(Math.max(mx, 0), noiseSettings.width - 1),
+      y: Math.min(Math.max(my, 0), noiseSettings.height - 1),
+    };
+
+    updateInputBuffer();
   }
-  function onMouseDown() {
-    viewF32[5] = 1.0;
-    flushViewUBO();
+
+  function onMouseDown(e) {
+    if (e.button === 0) mouse0Held = true;
+    if (e.button === 2) mouse1Held = true;
+
+    updateInputBuffer();
   }
-  function onMouseUp() {
-    viewF32[5] = 0.0;
-    flushViewUBO();
+
+  function onMouseUp(e) {
+    if (e.button === 0) mouse0Held = false;
+    if (e.button === 2) mouse1Held = false;
+
+    updateInputBuffer();
+  }
+
+  function onMouseScroll(e) {
+    e.preventDefault(); // stop the page from scrolling
+
+    const sign = Math.sign(e.deltaY) * -1;
+    const amount = 0.1 * mouseRadius * sign;
+    mouseRadius = Math.max(5, mouseRadius + amount);
+
+    updateInputBuffer();
+  }
+
+  function preventContext(e) {
+    e.preventDefault();
+  }
+
+  function updateInputBuffer() {
+    createOrUpdateInputBuffer(
+      device,
+      {
+        mousePos: mousePosition,
+        mouse0Held: mouse0Held,
+        mouse1Held: mouse1Held,
+        mouseRadius: mouseRadius,
+      },
+      inputUniformBuffer
+    );
   }
 
   window.addEventListener("mousemove", onMouseMove);
-  // Canvas mouse down to avoid clicks outside the game bounds
-  canvas.addEventListener("mousedown", onMouseDown);
   window.addEventListener("mouseup", onMouseUp);
 
+  // Canvas mouse down to avoid clicks outside the game bounds
+  canvas.addEventListener("contextmenu", preventContext);
+  canvas.addEventListener("mousedown", onMouseDown);
+  canvas.addEventListener("wheel", onMouseScroll, { passive: false });
+
   function writeTime(tSeconds) {
-    viewF32[4] = tSeconds;
-    device.queue.writeBuffer(viewUniformBuffer, 0, viewUBO);
+    // viewF32[4] = tSeconds;
+    // device.queue.writeBuffer(viewUniformBuffer, 0, viewUBO);
   }
 
   // ----- Storage buffers (vec4f per cell => 16 bytes) -----
   const BYTES_PER_CELL = 16;
-  const cellsBufferSize = width * height * BYTES_PER_CELL;
+  const cellsBufferSize =
+    noiseSettings.width * noiseSettings.height * BYTES_PER_CELL;
 
   const prevCellsBuffer = device.createBuffer({
     label: "Prev Cells",
@@ -155,8 +171,8 @@ export async function initWebGPU(
     const init = new Float32Array(cellsBufferSize / 4);
     const noiseData = generateNoiseMap(
       noiseSettings.seed,
-      width,
-      height,
+      noiseSettings.width,
+      noiseSettings.height,
       noiseSettings.noiseType,
       noiseSettings.fractalOctaves,
       noiseSettings.fractalLacunarity,
@@ -174,64 +190,6 @@ export async function initWebGPU(
     device.queue.writeBuffer(nextCellsBuffer, 0, init);
   }
 
-  // Terrain Color buffer
-  function colorsToFloatArray(colors) {
-    const floats = [];
-
-    for (const color of colors) {
-      // Extract r, g, b using regex
-      const match = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
-      if (!match) continue;
-
-      const r = parseInt(match[1], 10) / 255.0;
-      const g = parseInt(match[2], 10) / 255.0;
-      const b = parseInt(match[3], 10) / 255.0;
-
-      floats.push(r, g, b, 1.0); // RGBA, with alpha=1
-    }
-
-    return new Float32Array(floats);
-  }
-
-  // Terrain Color buffer from hex codes
-  function hexColorsToFloatArray(colors) {
-    const floats = [];
-
-    for (let color of colors) {
-      // Normalize shorthand #RGB → #RRGGBB
-      if (/^#([0-9a-fA-F]{3})$/.test(color)) {
-        color = color.replace(
-          /^#([0-9a-fA-F])([0-9a-fA-F])([0-9a-fA-F])$/,
-          "#$1$1$2$2$3$3"
-        );
-      }
-
-      const match = color.match(/^#([0-9a-fA-F]{6})$/);
-      if (!match) continue;
-
-      const hex = match[1];
-      const r = parseInt(hex.slice(0, 2), 16) / 255.0;
-      const g = parseInt(hex.slice(2, 4), 16) / 255.0;
-      const b = parseInt(hex.slice(4, 6), 16) / 255.0;
-
-      floats.push(r, g, b, 1.0); // RGBA, with alpha=1
-    }
-
-    return new Float32Array(floats);
-  }
-
-  const terrainColorsBuffer = device.createBuffer({
-    label: "Terrain Colors Buffer",
-    size: terrainColors.length * 16,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-  });
-
-  device.queue.writeBuffer(
-    terrainColorsBuffer,
-    0,
-    hexColorsToFloatArray(terrainColors)
-  );
-
   // ----- Bind group layouts -----
   // Compute: 0=uniform, 1=prev(read), 2=next(write)
   const computeBGL = device.createBindGroupLayout({
@@ -245,10 +203,20 @@ export async function initWebGPU(
       {
         binding: 1,
         visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: "read-only-storage" },
+        buffer: { type: "uniform" },
       },
       {
         binding: 2,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: { type: "uniform" },
+      },
+      {
+        binding: 3,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: { type: "read-only-storage" },
+      },
+      {
+        binding: 4,
         visibility: GPUShaderStage.COMPUTE,
         buffer: { type: "storage" },
       },
@@ -266,18 +234,23 @@ export async function initWebGPU(
       },
       {
         binding: 1,
-        visibility: GPUShaderStage.FRAGMENT,
-        buffer: { type: "read-only-storage" },
+        visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+        buffer: { type: "uniform" },
       },
       {
         binding: 2,
-        visibility: GPUShaderStage.FRAGMENT,
-        buffer: { type: "read-only-storage" },
+        visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+        buffer: { type: "uniform" },
       },
       {
         binding: 3,
         visibility: GPUShaderStage.FRAGMENT,
-        buffer: { type: "uniform" },
+        buffer: { type: "read-only-storage" },
+      },
+      {
+        binding: 4,
+        visibility: GPUShaderStage.FRAGMENT,
+        buffer: { type: "read-only-storage" },
       },
     ],
   });
@@ -303,8 +276,10 @@ export async function initWebGPU(
     layout: computeBGL,
     entries: [
       { binding: 0, resource: { buffer: viewUniformBuffer } },
-      { binding: 1, resource: { buffer: prevCellsBuffer } }, // read
-      { binding: 2, resource: { buffer: nextCellsBuffer } }, // write
+      { binding: 1, resource: { buffer: inputUniformBuffer } },
+      { binding: 2, resource: { buffer: terrainBuffer } },
+      { binding: 3, resource: { buffer: prevCellsBuffer } }, // read
+      { binding: 4, resource: { buffer: nextCellsBuffer } }, // write
     ],
   });
 
@@ -313,8 +288,10 @@ export async function initWebGPU(
     layout: computeBGL,
     entries: [
       { binding: 0, resource: { buffer: viewUniformBuffer } },
-      { binding: 1, resource: { buffer: nextCellsBuffer } }, // read
-      { binding: 2, resource: { buffer: prevCellsBuffer } }, // write
+      { binding: 1, resource: { buffer: inputUniformBuffer } },
+      { binding: 2, resource: { buffer: terrainBuffer } },
+      { binding: 3, resource: { buffer: nextCellsBuffer } }, // read
+      { binding: 4, resource: { buffer: prevCellsBuffer } }, // write
     ],
   });
 
@@ -323,9 +300,10 @@ export async function initWebGPU(
     layout: renderBGL,
     entries: [
       { binding: 0, resource: { buffer: viewUniformBuffer } },
-      { binding: 1, resource: { buffer: prevCellsBuffer } },
-      { binding: 2, resource: { buffer: terrainColorsBuffer } },
-      { binding: 3, resource: { buffer: terrainBuffer } },
+      { binding: 1, resource: { buffer: inputUniformBuffer } },
+      { binding: 2, resource: { buffer: terrainBuffer } },
+      { binding: 3, resource: { buffer: prevCellsBuffer } },
+      { binding: 4, resource: { buffer: terrainColorsBuffer } },
     ],
   });
 
@@ -334,9 +312,10 @@ export async function initWebGPU(
     layout: renderBGL,
     entries: [
       { binding: 0, resource: { buffer: viewUniformBuffer } },
-      { binding: 1, resource: { buffer: nextCellsBuffer } },
-      { binding: 2, resource: { buffer: terrainColorsBuffer } },
-      { binding: 3, resource: { buffer: terrainBuffer } },
+      { binding: 1, resource: { buffer: inputUniformBuffer } },
+      { binding: 2, resource: { buffer: terrainBuffer } },
+      { binding: 3, resource: { buffer: nextCellsBuffer } },
+      { binding: 4, resource: { buffer: terrainColorsBuffer } },
     ],
   });
 
@@ -345,7 +324,7 @@ export async function initWebGPU(
     label: "Canvas RenderPass",
     colorAttachments: [
       {
-        view: undefined, // set per frame
+        terrainView: undefined, // set per frame
         clearValue: { r: 0, g: 0, b: 0, a: 1 },
         loadOp: "clear",
         storeOp: "store",
@@ -356,8 +335,8 @@ export async function initWebGPU(
   // ----- Dispatch sizes (match @workgroup_size in WGSL) -----
   const WG_X = 16,
     WG_Y = 16;
-  const dispatchX = Math.ceil(width / WG_X);
-  const dispatchY = Math.ceil(height / WG_Y);
+  const dispatchX = Math.ceil(noiseSettings.width / WG_X);
+  const dispatchY = Math.ceil(noiseSettings.height / WG_Y);
 
   // ----- Frame loop -----
   let aToB = true; // true => compute uses A->B and we render B this frame
@@ -408,8 +387,11 @@ export async function initWebGPU(
   const cleanup = () => {
     cancelAnimationFrame(rafId);
     window.removeEventListener("mousemove", onMouseMove);
-    canvas.removeEventListener("mousedown", onMouseDown);
     window.removeEventListener("mouseup", onMouseUp);
+
+    canvas.removeEventListener("contextmenu", preventContext);
+    canvas.removeEventListener("mousedown", onMouseDown);
+    canvas.removeEventListener("wheel", onMouseScroll);
   };
   canvas.__wgpuCleanup = cleanup;
 
