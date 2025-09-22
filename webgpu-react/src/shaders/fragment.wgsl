@@ -7,14 +7,11 @@ fn fs(@builtin(position) frag_pos: vec4f) -> @location(0) vec4f {
     let x = u32(clamp(floor(frag_pos.x), 0.0, f32(w - 1u)));
     let y = u32(clamp(floor(frag_pos.y), 0.0, f32(h - 1u)));
     let coord = vec2(x,y);
+        let black = vec4f(0.0, 0.0, 0.0, 1.0);
 
-    let black = vec4f(0.0, 0.0, 0.0, 1.0);
+    if(!inBounds(x,y)) { return black; }
 
-    
-    // let borderWidth : u32 = 5u;
-    // if (x < borderWidth || y < borderWidth || x >= (w - borderWidth) || y >= (h - borderWidth)) {
-    //     return black;
-    // }
+    let cell = currentCells[idx(x,y)];
 
     // Draw a ring cursor (visual only)
     let mouseWidth  = 3.0;
@@ -31,7 +28,7 @@ fn fs(@builtin(position) frag_pos: vec4f) -> @location(0) vec4f {
     let terrainInShadow = inShadow(coord, sunPosition);
     
     // Get surface normal shadows
-    var sNorm = surfaceNormalSobel(coord);
+    var sNorm = cell.heightNormal;
     // sNorm = sNorm / sNorm;
     let terrainPos = vec3<f32>(f32(coord.x), roundedCellHeight(coord), f32(coord.y));
     let lightDir = normalize(sunPosition - terrainPos);

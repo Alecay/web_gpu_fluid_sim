@@ -5,9 +5,9 @@ import { defaultNoiseUISettings } from "../components/NoiseSettingsForm";
 import {
   createOrUpdateTerrainColorsBuffer,
   createOrUpdateTerrainParamsBuffer,
-} from "./terrainBuffer";
-import { createOrUpdateViewBuffer } from "./viewBuffer";
-import { createOrUpdateInputBuffer } from "./inputBuffer";
+} from "./buffers/terrainBuffer";
+import { createOrUpdateViewBuffer } from "./buffers/viewBuffer";
+import { createOrUpdateInputBuffer } from "./buffers/inputBuffer";
 
 export async function initWebGPU(
   canvas,
@@ -52,11 +52,21 @@ export async function initWebGPU(
   var mouse1Held = false;
   var mouseRadius = 30;
 
+  var currentTime = 0;
+
   const viewUniformBuffer = createOrUpdateViewBuffer(device, {
     width: noiseSettings.width,
     height: noiseSettings.height,
     time: 0,
   });
+
+  function updateViewBuffer() {
+    createOrUpdateViewBuffer(device, {
+      width: noiseSettings.width,
+      height: noiseSettings.height,
+      time: currentTime,
+    });
+  }
 
   const inputUniformBuffer = createOrUpdateInputBuffer(device, {
     mousePos: mousePosition,
@@ -144,13 +154,9 @@ export async function initWebGPU(
   canvas.addEventListener("mousedown", onMouseDown);
   canvas.addEventListener("wheel", onMouseScroll, { passive: false });
 
-  function writeTime(tSeconds) {
-    // viewF32[4] = tSeconds;
-    // device.queue.writeBuffer(viewUniformBuffer, 0, viewUBO);
-  }
-
   // ----- Storage buffers (vec4f per cell => 16 bytes) -----
-  const BYTES_PER_CELL = 16;
+  const FLOATS_PER_CELL = 12;
+  const BYTES_PER_CELL = 4 * FLOATS_PER_CELL;
   const cellsBufferSize =
     noiseSettings.width * noiseSettings.height * BYTES_PER_CELL;
 
@@ -168,7 +174,9 @@ export async function initWebGPU(
 
   // Initialize both (optional)
   {
-    const init = new Float32Array(cellsBufferSize / 4);
+    const init = new Float32Array(
+      noiseSettings.width * noiseSettings.height * FLOATS_PER_CELL
+    );
     const noiseData = generateNoiseMap(
       noiseSettings.seed,
       noiseSettings.width,
@@ -182,7 +190,7 @@ export async function initWebGPU(
     );
 
     for (let index = 0; index < noiseData.length; index++) {
-      const cellIndex = index * 4;
+      const cellIndex = index * FLOATS_PER_CELL;
       init[cellIndex] = noiseData[index] * 100.0;
     }
 
@@ -192,8 +200,8 @@ export async function initWebGPU(
 
   // ----- Bind group layouts -----
   // Compute: 0=uniform, 1=prev(read), 2=next(write)
-  const computeBGL = device.createBindGroupLayout({
-    label: "Compute BGL",
+  const stepComputeBGL = device.createBindGroupLayout({
+    label: "Step Compute BGL",
     entries: [
       {
         binding: 0,
@@ -213,10 +221,36 @@ export async function initWebGPU(
       {
         binding: 3,
         visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: "read-only-storage" },
+        buffer: { type: "storage" },
       },
       {
         binding: 4,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: { type: "storage" },
+      },
+    ],
+  });
+
+  const normalComputeBGL = device.createBindGroupLayout({
+    label: "Normal Compute BGL",
+    entries: [
+      {
+        binding: 0,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: { type: "uniform" },
+      },
+      {
+        binding: 1,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: { type: "uniform" },
+      },
+      {
+        binding: 2,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: { type: "uniform" },
+      },
+      {
+        binding: 3,
         visibility: GPUShaderStage.COMPUTE,
         buffer: { type: "storage" },
       },
@@ -245,7 +279,7 @@ export async function initWebGPU(
       {
         binding: 3,
         visibility: GPUShaderStage.FRAGMENT,
-        buffer: { type: "read-only-storage" },
+        buffer: { type: "storage" },
       },
       {
         binding: 4,
@@ -258,22 +292,37 @@ export async function initWebGPU(
   // ----- Pipelines -----
   const renderPipeline = device.createRenderPipeline({
     label: "Render Pipeline",
-    layout: device.createPipelineLayout({ bindGroupLayouts: [renderBGL] }),
+    layout: device.createPipelineLayout({
+      bindGroupLayouts: [renderBGL],
+      label: "Render Pipeline Layout",
+    }),
     vertex: { module, entryPoint: "vs" },
     fragment: { module, entryPoint: "fs", targets: [{ format }] },
     primitive: { topology: "triangle-list" },
   });
 
-  const computePipeline = device.createComputePipeline({
+  const normalComputePipeline = device.createComputePipeline({
+    label: "Normal Compute Pipeline",
+    layout: device.createPipelineLayout({
+      bindGroupLayouts: [normalComputeBGL],
+      label: "Normal Compute Pipeline Layout",
+    }),
+    compute: { module, entryPoint: "calc_normals" },
+  });
+
+  const stepComputePipeline = device.createComputePipeline({
     label: "Step Compute Pipeline",
-    layout: device.createPipelineLayout({ bindGroupLayouts: [computeBGL] }),
+    layout: device.createPipelineLayout({
+      bindGroupLayouts: [stepComputeBGL],
+      label: "Step Compute Pipeline Layout",
+    }),
     compute: { module, entryPoint: "step" },
   });
 
   // ----- Bind groups (prebuild both directions) -----
   const computeBG_AtoB = device.createBindGroup({
-    label: "Compute BG A→B",
-    layout: computeBGL,
+    label: "Step Compute BG A→B",
+    layout: stepComputeBGL,
     entries: [
       { binding: 0, resource: { buffer: viewUniformBuffer } },
       { binding: 1, resource: { buffer: inputUniformBuffer } },
@@ -284,14 +333,36 @@ export async function initWebGPU(
   });
 
   const computeBG_BtoA = device.createBindGroup({
-    label: "Compute BG B→A",
-    layout: computeBGL,
+    label: "Step Compute BG B→A",
+    layout: stepComputeBGL,
     entries: [
       { binding: 0, resource: { buffer: viewUniformBuffer } },
       { binding: 1, resource: { buffer: inputUniformBuffer } },
       { binding: 2, resource: { buffer: terrainBuffer } },
       { binding: 3, resource: { buffer: nextCellsBuffer } }, // read
       { binding: 4, resource: { buffer: prevCellsBuffer } }, // write
+    ],
+  });
+
+  const normalComputeBG_A = device.createBindGroup({
+    label: "Normal Compute A",
+    layout: normalComputeBGL,
+    entries: [
+      { binding: 0, resource: { buffer: viewUniformBuffer } },
+      { binding: 1, resource: { buffer: inputUniformBuffer } },
+      { binding: 2, resource: { buffer: terrainBuffer } },
+      { binding: 3, resource: { buffer: prevCellsBuffer } }, // read
+    ],
+  });
+
+  const normalComputeBG_B = device.createBindGroup({
+    label: "Normal Compute B",
+    layout: normalComputeBGL,
+    entries: [
+      { binding: 0, resource: { buffer: viewUniformBuffer } },
+      { binding: 1, resource: { buffer: inputUniformBuffer } },
+      { binding: 2, resource: { buffer: terrainBuffer } },
+      { binding: 3, resource: { buffer: nextCellsBuffer } }, // read
     ],
   });
 
@@ -345,17 +416,29 @@ export async function initWebGPU(
     if (context.__deviceId !== device.__id) return;
 
     await device.pushErrorScope("validation");
-    writeTime(tMs * 0.001);
+    currentTime = tMs * 0.001;
+    updateViewBuffer();
 
     const encoder = device.createCommandEncoder({ label: "Encoder" });
 
-    // Compute: prev -> next in chosen direction
+    // Step Compute: prev -> next in chosen direction
     {
-      const cpass = encoder.beginComputePass({ label: "Compute Pass" });
-      cpass.setPipeline(computePipeline);
-      cpass.setBindGroup(0, aToB ? computeBG_AtoB : computeBG_BtoA);
-      cpass.dispatchWorkgroups(dispatchX, dispatchY, 1);
-      cpass.end();
+      const stepPass = encoder.beginComputePass({ label: "Step Compute Pass" });
+      stepPass.setPipeline(stepComputePipeline);
+      stepPass.setBindGroup(0, aToB ? computeBG_AtoB : computeBG_BtoA);
+      stepPass.dispatchWorkgroups(dispatchX, dispatchY, 1);
+      stepPass.end();
+    }
+
+    // Normal Compute: prev -> next in chosen direction
+    {
+      const normalPass = encoder.beginComputePass({
+        label: "Normal Compute Pass",
+      });
+      normalPass.setPipeline(normalComputePipeline);
+      normalPass.setBindGroup(0, aToB ? normalComputeBG_B : normalComputeBG_A);
+      normalPass.dispatchWorkgroups(dispatchX, dispatchY, 1);
+      normalPass.end();
     }
 
     // Render: show the buffer we just wrote

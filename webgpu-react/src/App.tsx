@@ -11,10 +11,6 @@ export default function App() {
     defaultNoiseUISettings
   );
 
-  const [appliedSettings, setAppliedSettings] = useState<NoiseUISettings>(
-    defaultNoiseUISettings
-  );
-
   return (
     <Container>
       <Row>
@@ -43,7 +39,7 @@ export default function App() {
             initial={settings}
             onChange={setSettings}
             onApply={(s) => {
-              setAppliedSettings(s);
+              setSettings(s);
               console.log("Apply clicked:", s);
             }}
           />

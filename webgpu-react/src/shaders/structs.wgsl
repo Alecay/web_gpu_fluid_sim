@@ -13,11 +13,12 @@ struct Input {
 };
 
 struct CellData {
-    height  : f32,
-    famount : f32,
-    _pad0   : f32,
-    _pad1   : f32,
+    height       : f32,       // 0..3
+    heightNormal : vec3<f32>, // starts at 16, uses 16 bytes
+    famount      : f32,       // at 28
+    _pad0        : vec3<f32>, // starts at 32, uses 16 bytes
 };
+// total size = 48 bytes, 12 floats
 
 // Terrain params you had in HLSL: maxCellValue, terrainHeightMultiplier, colorSteps, numberOfTerrainColors
 struct TerrainParams {

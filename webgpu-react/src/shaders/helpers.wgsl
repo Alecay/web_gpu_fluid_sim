@@ -161,7 +161,7 @@ fn inShadow(coord : vec2<u32>, sunPosition : vec3<f32>) -> bool
   let rayTarget = vec3<f32>(f32(coord.x), roundedCellHeight(coord), f32(coord.y));
   var currentPos = sunPosition;
 
-  let accuracy = f32(2.0);
+  let accuracy = f32(1.0);
 
   for (var i = 0; i < 1920; i += 1) 
   {

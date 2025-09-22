@@ -101,11 +101,6 @@ export default function NoiseSettingsForm({
     });
   }, [settings.numberOfTerrainColors]); // NOTE: intentionally depends on settings.numberOfTerrainColors
 
-  // Bubble changes up
-  useEffect(() => {
-    onChange?.(settings);
-  }, [settings, onChange]);
-
   // Handy setter helper
   const set = <K extends keyof NoiseUISettings>(
     key: K,
