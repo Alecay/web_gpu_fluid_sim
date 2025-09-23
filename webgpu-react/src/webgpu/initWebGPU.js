@@ -168,14 +168,14 @@ export async function initWebGPU(
   // Create output texture buffer
   const outputTextureBuffer = device.createBuffer({
     label: "Output Texture",
-    size: noiseSettings.width * noiseSettings.height * 4 * 4,
+    size: noiseSettings.width * noiseSettings.height * 4 * 8,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
 
   device.queue.writeBuffer(
     outputTextureBuffer,
     0,
-    new Float32Array(noiseSettings.width * noiseSettings.height * 4)
+    new Float32Array(noiseSettings.width * noiseSettings.height * 8)
   );
 
   // ----- Storage buffers (vec4f per cell => 16 bytes) -----
@@ -355,13 +355,22 @@ export async function initWebGPU(
     compute: { module, entryPoint: "calc_normals" },
   });
 
-  const outputTextureComputePipeline = device.createComputePipeline({
-    label: "Output Texture Compute Pipeline",
+  const terrainTextureComputePipeline = device.createComputePipeline({
+    label: "Terrain Texture Compute Pipeline",
     layout: device.createPipelineLayout({
       bindGroupLayouts: [outputTextureComputeBGL],
-      label: "Output Texture Compute Pipeline Layout",
+      label: "Terrain Texture Compute Pipeline Layout",
     }),
-    compute: { module, entryPoint: "render" },
+    compute: { module, entryPoint: "terrain_render" },
+  });
+
+  const shadowTextureComputePipeline = device.createComputePipeline({
+    label: "Shadow Texture Compute Pipeline",
+    layout: device.createPipelineLayout({
+      bindGroupLayouts: [outputTextureComputeBGL],
+      label: "Shadow Texture Compute Pipeline Layout",
+    }),
+    compute: { module, entryPoint: "shadow_render" },
   });
 
   const stepComputePipeline = device.createComputePipeline({
@@ -505,13 +514,13 @@ export async function initWebGPU(
       stepPass.end();
     }
 
-    if (mouse0Held || mouse1Held) {
+    if (frameIdx === 0 || mouse0Held || mouse1Held) {
       updateTexture = true;
       updateNormals = true;
     }
 
     // Normal Compute: prev -> next in chosen direction
-    if (frameIdx === 0 || updateNormals) {
+    if (updateNormals) {
       const normalPass = encoder.beginComputePass({
         label: "Normal Compute Pass",
       });
@@ -526,20 +535,37 @@ export async function initWebGPU(
     }
 
     // output compute pass
-    if (frameIdx === 0 || updateTexture) {
-      const outputPass = encoder.beginComputePass({
-        label: "Output Texture Compute Pass",
+    if (updateTexture) {
+      const terrainRenderPass = encoder.beginComputePass({
+        label: "Terrain Texture Compute Pass",
       });
-      outputPass.setPipeline(outputTextureComputePipeline);
-      outputPass.setBindGroup(
+      terrainRenderPass.setPipeline(terrainTextureComputePipeline);
+      terrainRenderPass.setBindGroup(
         0,
         aToB ? outputTextureBG_showB : outputTextureBG_showA
       );
-      outputPass.dispatchWorkgroups(dispatchX, dispatchY, 1);
-      outputPass.end();
+      terrainRenderPass.dispatchWorkgroups(dispatchX, dispatchY, 1);
+      terrainRenderPass.end();
 
       updateTexture = false;
-      console.log("Updated texture");
+      console.log("Updated Terrain Texture");
+    }
+
+    // output compute pass
+    if (true) {
+      const shadowRenderPass = encoder.beginComputePass({
+        label: "Shadow Texture Compute Pass",
+      });
+      shadowRenderPass.setPipeline(shadowTextureComputePipeline);
+      shadowRenderPass.setBindGroup(
+        0,
+        aToB ? outputTextureBG_showB : outputTextureBG_showA
+      );
+      shadowRenderPass.dispatchWorkgroups(dispatchX, dispatchY, 1);
+      shadowRenderPass.end();
+
+      updateTexture = false;
+      console.log("Updated Shadow Texture");
     }
 
     // Render: show the buffer we just wrote

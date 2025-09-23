@@ -25,9 +25,11 @@
 
 //{normal_compute}
 
-//{render_compute}
+//{terrain_render_compute}
 
-// Compute reads previous (bind 1) and writes next (bind 2)
+//{shadow_render_compute}
+
+// Compute reads previous (bind 3) and writes next (bind 4)
 @group(0) @binding(3) var<storage, read_write> prevCells : array<CellData>;
 @group(0) @binding(4) var<storage, read_write> nextCells : array<CellData>;
 

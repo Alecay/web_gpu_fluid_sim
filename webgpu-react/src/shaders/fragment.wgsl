@@ -7,9 +7,12 @@ fn fs(@builtin(position) frag_pos: vec4f) -> @location(0) vec4f {
     let x = u32(clamp(floor(frag_pos.x), 0.0, f32(w - 1u)));
     let y = u32(clamp(floor(frag_pos.y), 0.0, f32(h - 1u)));
     let coord = vec2(x,y);
-        let black = vec4f(0.0, 0.0, 0.0, 1.0);
+    let black = vec4f(0.0, 0.0, 0.0, 1.0);
 
     if(!inBounds(x,y)) { return black; }
 
-    return outputTex[idx(x,y)];   
+    let terrainColor = outputTex[idx(x,y)];
+    let shadowColor = outputTex[idx(x,y) + uView.size.x * uView.size.y];
+
+    return shadowColor;//mix(terrainColor, shadowColor, shadowColor.a);  
 }

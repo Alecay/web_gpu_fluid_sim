@@ -1,5 +1,5 @@
 @compute @workgroup_size(16, 16, 1)
-fn render(@builtin(global_invocation_id) gid : vec3<u32>) {
+fn shadow_render(@builtin(global_invocation_id) gid : vec3<u32>) {
     let x = gid.x;
     let y = gid.y;
     let coord = vec2(x,y);
@@ -13,12 +13,8 @@ fn render(@builtin(global_invocation_id) gid : vec3<u32>) {
     let mouseWidth  = 3.0;
     let inOuter = inside_circle(vec2<u32>(x,y), uInput.mousePos, uInput.mouseRadius);
     let inInner = inside_circle(vec2<u32>(x,y), uInput.mousePos, uInput.mouseRadius - mouseWidth);
-    if (inOuter && !inInner) {
-        outputTex[idx(x,y)] = black;
-        return;
-    }
 
-    var terrainColor = getTerrainColor(coord);
+    var terrainColor = vec4<f32>(1,1,1,1);//getTerrainColor(coord);
 
     let shadowColor = mix(vec4(0.0, 0.0, 1.0, 1.0), black, 0.75);
     let sunPosition = vec3<f32>(f32(uInput.mousePos.x), 300, f32(uInput.mousePos.y));
@@ -32,9 +28,19 @@ fn render(@builtin(global_invocation_id) gid : vec3<u32>) {
     let shade = clamp(max(dot(sNorm, lightDir), 0.0) + 0.95, 0.0, 1.0);
 
 
+    // Apply terrain shadows
     if(terrainInShadow) { terrainColor = mix(terrainColor, shadowColor, 0.5); }
-
+    
+    // Apply surface normal shading
     terrainColor = vec4<f32>(terrainColor.r * shade, terrainColor.g * shade, terrainColor.b * shade, terrainColor.a);
 
-    outputTex[idx(x,y)] = terrainColor;
+    // Apply cursor outline
+    if (inOuter && !inInner) {
+        terrainColor = mix(terrainColor, black, 0.5);
+    }
+
+    //let shadowVars = vec4<f32>(select(1, 0, terrainInShadow), shade, 0, 0);
+
+    let idOffset = uView.size.x * uView.size.y;
+    outputTex[idx(x,y) + idOffset] = terrainColor;
 }
