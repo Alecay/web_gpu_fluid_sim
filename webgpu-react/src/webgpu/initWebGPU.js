@@ -61,11 +61,15 @@ export async function initWebGPU(
   });
 
   function updateViewBuffer() {
-    createOrUpdateViewBuffer(device, {
-      width: noiseSettings.width,
-      height: noiseSettings.height,
-      time: currentTime,
-    });
+    createOrUpdateViewBuffer(
+      device,
+      {
+        width: noiseSettings.width,
+        height: noiseSettings.height,
+        time: currentTime,
+      },
+      viewUniformBuffer
+    );
   }
 
   const inputUniformBuffer = createOrUpdateInputBuffer(device, {
@@ -412,6 +416,7 @@ export async function initWebGPU(
   // ----- Frame loop -----
   let aToB = true; // true => compute uses A->B and we render B this frame
   let rafId = 0;
+  let frameIdx = 0;
   async function frame(tMs = 0) {
     if (context.__deviceId !== device.__id) return;
 
@@ -431,7 +436,7 @@ export async function initWebGPU(
     }
 
     // Normal Compute: prev -> next in chosen direction
-    {
+    if (frameIdx === 0) {
       const normalPass = encoder.beginComputePass({
         label: "Normal Compute Pass",
       });
@@ -459,6 +464,8 @@ export async function initWebGPU(
     const err = await device.popErrorScope();
     if (err) console.error("Validation error:", err.message);
 
+    frameIdx++;
+
     // Flip for next frame (no copies, no buffer reassign)
     aToB = !aToB;
 
@@ -475,6 +482,13 @@ export async function initWebGPU(
     canvas.removeEventListener("contextmenu", preventContext);
     canvas.removeEventListener("mousedown", onMouseDown);
     canvas.removeEventListener("wheel", onMouseScroll);
+
+    viewUniformBuffer.destroy();
+    inputUniformBuffer.destroy();
+    terrainBuffer.destroy();
+    terrainColorsBuffer.destroy();
+    prevCellsBuffer.destroy();
+    nextCellsBuffer.destroy();
   };
   canvas.__wgpuCleanup = cleanup;
 

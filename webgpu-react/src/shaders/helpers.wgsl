@@ -105,42 +105,6 @@ fn getTerrainColor(coord: vec2<u32>) -> vec4f {
   if (h >= 0.0) {
     let maxHeight = i32(round(uTerrain.maxCellValue * uTerrain.terrainHeightMultiplier));
     color = terrainColorLerp(h / f32(maxHeight));
-
-    let black = vec4f(0.0, 0.0, 0.0, 1.0);
-    let white = vec4f(1.0, 1.0, 1.0, 1.0);
-
-    let darkT  : f32 = 0.35;
-    let lightT : f32 = 0.10;
-    var changed = false;
-
-    // // check north neighbor first
-    // {
-    //   let nCoord = coord + vec2<u32>(0u, 1u);
-    //   if (inBounds(nCoord.x, nCoord.y)) {
-    //     let nValue = roundedCellHeight(nCoord);
-
-    //     if (nValue < h) {
-    //       color   = colorLerp(color, black, darkT);
-    //       changed = true;
-    //     } else if (nValue > h) {
-    //       color   = colorLerp(color, white, lightT);
-    //       changed = true;
-    //     }
-    //   }
-    // }
-
-    // // then east neighbor if not changed
-    // if (!changed) {
-    //   let nCoord = coord + vec2<u32>(1u, 0u);
-    //   if (inBounds(nCoord.x, nCoord.y)) {
-    //     let nValue = roundedCellHeight(nCoord);
-    //     if (nValue < h) {
-    //       color = colorLerp(color, black, darkT);
-    //     } else if (nValue > h) {
-    //       color = colorLerp(color, white, lightT);
-    //     }
-    //   }
-    // }
   }
 
   return color;
@@ -158,27 +122,70 @@ fn distToGround(pos : vec3<f32>) -> f32
 
 fn inShadow(coord : vec2<u32>, sunPosition : vec3<f32>) -> bool
 {
+  // let rayTarget = vec3<f32>(f32(coord.x), roundedCellHeight(coord), f32(coord.y));
+  // var currentPos = sunPosition;
+
+  // let accuracy = f32(10.0);
+
+  // var passes = 0;
+  // while (passes < 1000)
+  // {
+  //   passes++;
+
+  //   if(distance(currentPos, rayTarget) < 1e-6)
+  //   {
+  //     return false;
+  //   }
+    
+  //   let distG = distToGround(currentPos);
+  //   if(distG <= -1e-3) 
+  //   { 
+  //     return true;
+  //   }
+
+  //   let nextPosition = move_towards3(currentPos, rayTarget, f32(max(0.5, distG / accuracy)));
+  //   currentPos = nextPosition;    
+  // }
+
   let rayTarget = vec3<f32>(f32(coord.x), roundedCellHeight(coord), f32(coord.y));
   var currentPos = sunPosition;
 
+  // accuracy stays high, but steps adapt to distance-to-ground
   let accuracy = f32(1.0);
 
-  for (var i = 0; i < 1920; i += 1) 
-  {
-    if(distance(currentPos, rayTarget) < 1e-6)
-    {
+  var passes = 0;
+  while (passes < 1000) {
+    passes++;
+
+    // squared distance check (avoid sqrt each loop)
+    let toT = currentPos - rayTarget;
+    let toT2 = dot(toT, toT);
+    if (toT2 < 1e-8) {        // (~1e-4^2); tune as needed
       return false;
     }
-    
+
     let distG = distToGround(currentPos);
-    if(distG <= -1e-3) 
-    { 
+    if (distG <= -1e-3) {
       return true;
     }
 
-    let nextPosition = move_towards3(currentPos, rayTarget, f32(max(1, distG / accuracy)));
-    currentPos = nextPosition;    
-  }
 
+    // --- Adaptive step: coarse when far from ground, fine near ground ---
+    // Coarse branch: larger/faster steps when well above ground
+    let coarse = clamp(distG * 0.8, 0.5, uTerrain.maxCellValue * 0.2);
+    // Fine branch: smaller/safer steps near ground to prevent gaps
+    let fine = clamp(distG / accuracy, 0.5, 2.0);
+    var moveAmount = select(coarse, fine, distG > uTerrain.maxCellValue * 0.02);
+
+    // Never overshoot the target
+    let toTargetLen = sqrt(toT2);        // one sqrt only when needed
+    moveAmount = min(moveAmount, toTargetLen);
+
+    let nextPosition = move_towards3(currentPos, rayTarget, moveAmount);
+    currentPos = nextPosition;
+  }
   return false;
+
+
+  // return false;
 }
