@@ -12,6 +12,7 @@
 
 @group(0) @binding(3) var<storage, read_write> currentCells : array<CellData>;
 @group(0) @binding(4) var<storage, read>       terrainColors : array<vec4f>;
+@group(0) @binding(5) var<storage, read_write> outputTex : array<vec4f>;
 
 
 //{Vertex}
@@ -23,6 +24,8 @@
 // =====================================================
 
 //{normal_compute}
+
+//{render_compute}
 
 // Compute reads previous (bind 1) and writes next (bind 2)
 @group(0) @binding(3) var<storage, read_write> prevCells : array<CellData>;

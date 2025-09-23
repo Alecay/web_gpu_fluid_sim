@@ -8,6 +8,7 @@ import {
 } from "./buffers/terrainBuffer";
 import { createOrUpdateViewBuffer } from "./buffers/viewBuffer";
 import { createOrUpdateInputBuffer } from "./buffers/inputBuffer";
+import { createOrUpdateBuffer } from "./buffers/wgslPacker";
 
 export async function initWebGPU(
   canvas,
@@ -19,6 +20,9 @@ export async function initWebGPU(
   if (canvas.__wgpuCleanup) {
     canvas.__wgpuCleanup(); // stop old RAF, remove listeners
   }
+
+  var updateNormals = false;
+  var updateTexture = false;
 
   const device = await getDevice();
   // console.log("Using WebGPU device:", device.__id);
@@ -148,6 +152,9 @@ export async function initWebGPU(
       },
       inputUniformBuffer
     );
+
+    updateNormals = true;
+    updateTexture = true;
   }
 
   window.addEventListener("mousemove", onMouseMove);
@@ -157,6 +164,19 @@ export async function initWebGPU(
   canvas.addEventListener("contextmenu", preventContext);
   canvas.addEventListener("mousedown", onMouseDown);
   canvas.addEventListener("wheel", onMouseScroll, { passive: false });
+
+  // Create output texture buffer
+  const outputTextureBuffer = device.createBuffer({
+    label: "Output Texture",
+    size: noiseSettings.width * noiseSettings.height * 4 * 4,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+  });
+
+  device.queue.writeBuffer(
+    outputTextureBuffer,
+    0,
+    new Float32Array(noiseSettings.width * noiseSettings.height * 4)
+  );
 
   // ----- Storage buffers (vec4f per cell => 16 bytes) -----
   const FLOATS_PER_CELL = 12;
@@ -261,6 +281,42 @@ export async function initWebGPU(
     ],
   });
 
+  const outputTextureComputeBGL = device.createBindGroupLayout({
+    label: "Output Texture Compute BGL",
+    entries: [
+      {
+        binding: 0,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: { type: "uniform" },
+      },
+      {
+        binding: 1,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: { type: "uniform" },
+      },
+      {
+        binding: 2,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: { type: "uniform" },
+      },
+      {
+        binding: 3,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: { type: "storage" },
+      },
+      {
+        binding: 4,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: { type: "read-only-storage" },
+      },
+      {
+        binding: 5,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: { type: "storage" },
+      },
+    ],
+  });
+
   // Render: 0=uniform, 1=current(read) for fragment
   const renderBGL = device.createBindGroupLayout({
     label: "Render BGL",
@@ -271,24 +327,9 @@ export async function initWebGPU(
         buffer: { type: "uniform" },
       },
       {
-        binding: 1,
-        visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
-        buffer: { type: "uniform" },
-      },
-      {
-        binding: 2,
-        visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
-        buffer: { type: "uniform" },
-      },
-      {
-        binding: 3,
+        binding: 5,
         visibility: GPUShaderStage.FRAGMENT,
         buffer: { type: "storage" },
-      },
-      {
-        binding: 4,
-        visibility: GPUShaderStage.FRAGMENT,
-        buffer: { type: "read-only-storage" },
       },
     ],
   });
@@ -312,6 +353,15 @@ export async function initWebGPU(
       label: "Normal Compute Pipeline Layout",
     }),
     compute: { module, entryPoint: "calc_normals" },
+  });
+
+  const outputTextureComputePipeline = device.createComputePipeline({
+    label: "Output Texture Compute Pipeline",
+    layout: device.createPipelineLayout({
+      bindGroupLayouts: [outputTextureComputeBGL],
+      label: "Output Texture Compute Pipeline Layout",
+    }),
+    compute: { module, entryPoint: "render" },
   });
 
   const stepComputePipeline = device.createComputePipeline({
@@ -370,15 +420,38 @@ export async function initWebGPU(
     ],
   });
 
-  const renderBG_showA = device.createBindGroup({
-    label: "Render BG show A",
-    layout: renderBGL,
+  const outputTextureBG_showA = device.createBindGroup({
+    label: "Output Texture BG show A",
+    layout: outputTextureComputeBGL,
     entries: [
       { binding: 0, resource: { buffer: viewUniformBuffer } },
       { binding: 1, resource: { buffer: inputUniformBuffer } },
       { binding: 2, resource: { buffer: terrainBuffer } },
       { binding: 3, resource: { buffer: prevCellsBuffer } },
       { binding: 4, resource: { buffer: terrainColorsBuffer } },
+      { binding: 5, resource: { buffer: outputTextureBuffer } },
+    ],
+  });
+
+  const outputTextureBG_showB = device.createBindGroup({
+    label: "Output Texture BG show B",
+    layout: outputTextureComputeBGL,
+    entries: [
+      { binding: 0, resource: { buffer: viewUniformBuffer } },
+      { binding: 1, resource: { buffer: inputUniformBuffer } },
+      { binding: 2, resource: { buffer: terrainBuffer } },
+      { binding: 3, resource: { buffer: nextCellsBuffer } },
+      { binding: 4, resource: { buffer: terrainColorsBuffer } },
+      { binding: 5, resource: { buffer: outputTextureBuffer } },
+    ],
+  });
+
+  const renderBG_showA = device.createBindGroup({
+    label: "Render BG show A",
+    layout: renderBGL,
+    entries: [
+      { binding: 0, resource: { buffer: viewUniformBuffer } },
+      { binding: 5, resource: { buffer: outputTextureBuffer } },
     ],
   });
 
@@ -387,10 +460,7 @@ export async function initWebGPU(
     layout: renderBGL,
     entries: [
       { binding: 0, resource: { buffer: viewUniformBuffer } },
-      { binding: 1, resource: { buffer: inputUniformBuffer } },
-      { binding: 2, resource: { buffer: terrainBuffer } },
-      { binding: 3, resource: { buffer: nextCellsBuffer } },
-      { binding: 4, resource: { buffer: terrainColorsBuffer } },
+      { binding: 5, resource: { buffer: outputTextureBuffer } },
     ],
   });
 
@@ -435,8 +505,13 @@ export async function initWebGPU(
       stepPass.end();
     }
 
+    if (mouse0Held || mouse1Held) {
+      updateTexture = true;
+      updateNormals = true;
+    }
+
     // Normal Compute: prev -> next in chosen direction
-    if (frameIdx === 0) {
+    if (frameIdx === 0 || updateNormals) {
       const normalPass = encoder.beginComputePass({
         label: "Normal Compute Pass",
       });
@@ -444,6 +519,27 @@ export async function initWebGPU(
       normalPass.setBindGroup(0, aToB ? normalComputeBG_B : normalComputeBG_A);
       normalPass.dispatchWorkgroups(dispatchX, dispatchY, 1);
       normalPass.end();
+
+      updateNormals = false;
+
+      console.log("Updated normals");
+    }
+
+    // output compute pass
+    if (frameIdx === 0 || updateTexture) {
+      const outputPass = encoder.beginComputePass({
+        label: "Output Texture Compute Pass",
+      });
+      outputPass.setPipeline(outputTextureComputePipeline);
+      outputPass.setBindGroup(
+        0,
+        aToB ? outputTextureBG_showB : outputTextureBG_showA
+      );
+      outputPass.dispatchWorkgroups(dispatchX, dispatchY, 1);
+      outputPass.end();
+
+      updateTexture = false;
+      console.log("Updated texture");
     }
 
     // Render: show the buffer we just wrote
@@ -489,6 +585,7 @@ export async function initWebGPU(
     terrainColorsBuffer.destroy();
     prevCellsBuffer.destroy();
     nextCellsBuffer.destroy();
+    outputTextureBuffer.destroy();
   };
   canvas.__wgpuCleanup = cleanup;
 
