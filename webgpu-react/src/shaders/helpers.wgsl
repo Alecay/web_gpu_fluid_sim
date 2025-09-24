@@ -120,6 +120,13 @@ fn distToGround(pos : vec3<f32>) -> f32
   return dist;
 }
 
+fn over_rgba(base: vec4<f32>, top: vec4<f32>) -> vec4<f32> {
+  let a  = clamp(top.a, 0.0, 1.0);
+  let oa = a + base.a * (1.0 - a);
+  let rgb = (top.rgb * a + base.rgb * base.a * (1.0 - a)) / max(oa, 1e-6);
+  return vec4<f32>(rgb, oa);
+}
+
 fn inShadow(coord : vec2<u32>, sunPosition : vec3<f32>) -> bool
 {
   // let rayTarget = vec3<f32>(f32(coord.x), roundedCellHeight(coord), f32(coord.y));
@@ -188,4 +195,26 @@ fn inShadow(coord : vec2<u32>, sunPosition : vec3<f32>) -> bool
 
 
   // return false;
+}
+
+// Build one "shadow layer" that combines tinting + shading.
+// Inputs:
+//   shadowRgb  - the shadow/tint color (e.g., black or bluish tint)
+//   s          - shadow strength in [0,1] (0 if not in shadow, else e.g. 0.5)
+//   shade      - lambert-ish term in [0,1] (1=no darkening, 0=black)
+// Output: straight-alpha color to place OVER the base with normal alpha.
+fn makeCombinedShadowLayer(shadowRgb: vec3<f32>, s: f32, shade: f32) -> vec4<f32> {
+  let bs = clamp(s, 0.0, 1.0);
+  let bm = clamp(shade, 0.0, 1.0);
+
+  // Combined alpha that reproduces: shade * mix(base, shadowRgb, S)
+  let a = 1.0 - bm * (1.0 - bs);
+
+  if (a <= 1e-6) {
+    return vec4<f32>(0.0, 0.0, 0.0, 0.0); // no effect
+  }
+
+  // Top RGB so that mix(base, topRgb, a) == shade * mix(base, shadowRgb, S)
+  let topRgb = (bm * bs / a) * shadowRgb;
+  return vec4<f32>(topRgb, a);
 }

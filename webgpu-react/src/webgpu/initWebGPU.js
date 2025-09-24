@@ -531,7 +531,7 @@ export async function initWebGPU(
 
       updateNormals = false;
 
-      console.log("Updated normals");
+      // console.log("Updated normals");
     }
 
     // output compute pass
@@ -548,7 +548,7 @@ export async function initWebGPU(
       terrainRenderPass.end();
 
       updateTexture = false;
-      console.log("Updated Terrain Texture");
+      // console.log("Updated Terrain Texture");
     }
 
     // output compute pass
@@ -565,7 +565,7 @@ export async function initWebGPU(
       shadowRenderPass.end();
 
       updateTexture = false;
-      console.log("Updated Shadow Texture");
+      // console.log("Updated Shadow Texture");
     }
 
     // Render: show the buffer we just wrote

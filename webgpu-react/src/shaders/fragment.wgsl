@@ -14,5 +14,7 @@ fn fs(@builtin(position) frag_pos: vec4f) -> @location(0) vec4f {
     let terrainColor = outputTex[idx(x,y)];
     let shadowColor = outputTex[idx(x,y) + uView.size.x * uView.size.y];
 
-    return shadowColor;//mix(terrainColor, shadowColor, shadowColor.a);  
+    var combinedColor = over_rgba(terrainColor, shadowColor);
+
+    return combinedColor;
 }
