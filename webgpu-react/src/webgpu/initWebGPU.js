@@ -583,9 +583,8 @@ export async function initWebGPU(
     const err = await device.popErrorScope();
     if (err) console.error("Validation error:", err.message);
 
-    if(updateTerrainTexture || updateShadowTexture || updateNormals)
-    {
-      console.log(`Update: N (${updateNormals}), T (${updateTerrainTexture}), S (${updateShadowTexture})`)
+    if (updateTerrainTexture || updateShadowTexture || updateNormals) {
+      // console.log(`Update: N (${updateNormals}), T (${updateTerrainTexture}), S (${updateShadowTexture})`)
     }
 
     updateTerrainTexture = false;

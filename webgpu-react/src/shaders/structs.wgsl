@@ -15,7 +15,7 @@ struct Input {
 struct CellData {
     height       : f32,       // 0..3
     heightNormal : vec3<f32>, // starts at 16, uses 16 bytes
-    famount      : f32,       // at 28
+    fAmount      : f32,       // at 28
     _pad0        : vec3<f32>, // starts at 32, uses 16 bytes
 };
 // total size = 48 bytes, 12 floats

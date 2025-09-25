@@ -12,20 +12,33 @@ fn step(@builtin(global_invocation_id) gid : vec3<u32>) {
     let mouse0Held   = uInput.mouse0Held > 0.5;
     let mouse1Held   = uInput.mouse1Held > 0.5;
     
-if(mouse0Held || mouse1Held)
-{
-    let inside = inside_circle(vec2<u32>(x,y), uInput.mousePos, uInput.mouseRadius);
-    if (mouse0Held &&inside) {
-        out.height = out.height + 1.0;
-    }
-    else if (mouse1Held && inside) {
-        out.height = out.height - 1.0;
-    }
-}
+    // height editing
+    // if(mouse0Held || mouse1Held)
+    // {
+    //     let inside = inside_circle(vec2<u32>(x,y), uInput.mousePos, uInput.mouseRadius);
+    //     if (mouse0Held && inside) {
+    //         out.height = out.height + 1.0;
+    //     }
+    //     else if (mouse1Held && inside) {
+    //         out.height = out.height - 1.0;
+    //     }
+    // }
+    // // Clamp
+    // out.height = clamp(out.height, 0.0, uTerrain.maxCellValue);
 
-
+    // Fluid editing
+    if(mouse0Held || mouse1Held)
+    {
+        let inside = inside_circle(vec2<u32>(x,y), uInput.mousePos, uInput.mouseRadius);
+        if (mouse0Held && inside) {
+            out.fAmount = out.fAmount + 1.0;
+        }
+        else if (mouse1Held && inside) {
+            out.fAmount = out.fAmount - 1.0;
+        }
+    }
     // Clamp
-    out.height = clamp(out.height, 0.0, 100.0);
+    out.fAmount = clamp(out.fAmount, 0.0, uTerrain.maxCellValue);
 
     nextCells[i] = out;
 }
