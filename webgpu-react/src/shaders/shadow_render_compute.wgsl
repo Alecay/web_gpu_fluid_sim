@@ -45,10 +45,22 @@ fn shadow_render(@builtin(global_invocation_id) gid : vec3<u32>) {
     {
         finalColor = over_rgba(finalColor, normalOutline);
     }
-    
+
+    let waterLevel = 50.0;
+    let waterAMax = 0.75;
+    let waterAMin = 0.6;
+    let waterRgb = vec3(0.059, 0.145, 0.478);//0.384, 0.651, 0.663
+    let waterHeight = waterLevel - currentHeight;
+    let waterA = clamp(waterHeight / 10.0 * waterAMax, waterAMin, waterAMax);
+
+    let waterColor = vec4(waterRgb, waterA);
+    if(waterHeight > 0.0)
+    {
+        finalColor = over_rgba(finalColor, waterColor);
+        //castedShadowColor = vec4f(castedShadowColor.rgb, castedShadowColor.a * 0.1);
+    }
     finalColor = over_rgba(finalColor, castedShadowColor);
     finalColor = over_rgba(finalColor, cursorOutline);
-
 
     let idOffset = uView.size.x * uView.size.y;
     outputTex[idx(x,y) + idOffset] = finalColor;
