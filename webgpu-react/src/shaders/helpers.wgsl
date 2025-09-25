@@ -203,7 +203,8 @@ fn inShadow(coord : vec2<u32>, sunPosition : vec3<f32>) -> bool
 //   s          - shadow strength in [0,1] (0 if not in shadow, else e.g. 0.5)
 //   shade      - lambert-ish term in [0,1] (1=no darkening, 0=black)
 // Output: straight-alpha color to place OVER the base with normal alpha.
-fn makeCombinedShadowLayer(shadowRgb: vec3<f32>, s: f32, shade: f32) -> vec4<f32> {
+fn makeCombinedShadowLayer(shadowRgb: vec3<f32>, s: f32, shade: f32) -> vec4<f32> 
+{
   let bs = clamp(s, 0.0, 1.0);
   let bm = clamp(shade, 0.0, 1.0);
 
@@ -217,4 +218,9 @@ fn makeCombinedShadowLayer(shadowRgb: vec3<f32>, s: f32, shade: f32) -> vec4<f32
   // Top RGB so that mix(base, topRgb, a) == shade * mix(base, shadowRgb, S)
   let topRgb = (bm * bs / a) * shadowRgb;
   return vec4<f32>(topRgb, a);
+}
+
+fn getTerrainOutlineColor() -> -> vec4<f32> 
+{
+  
 }
