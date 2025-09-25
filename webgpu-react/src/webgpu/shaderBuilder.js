@@ -2,7 +2,7 @@ import structsWGSL from "../shaders/structs.wgsl?raw";
 import helpersWGSL from "../shaders/helpers.wgsl?raw";
 import vertexWGSL from "../shaders/vertex.wgsl?raw";
 import fragmentWGSL from "../shaders/fragment.wgsl?raw";
-import realtimeFragmentWGSL from "../shaders/realtime_frag.wgsl?raw";
+// import realtimeFragmentWGSL from "../shaders/realtime_frag.wgsl?raw";
 import normalComputeWGSL from "../shaders/normal_compute.wgsl?raw";
 import terrainRenderComputeWGSL from "../shaders/terrain_render_compute.wgsl?raw";
 import shadowRenderComputeWGSL from "../shaders/shadow_render_compute.wgsl?raw";

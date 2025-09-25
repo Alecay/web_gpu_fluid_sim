@@ -22,7 +22,8 @@ export async function initWebGPU(
   }
 
   var updateNormals = false;
-  var updateTexture = false;
+  var updateTerrainTexture = false;
+  var updateShadowTexture = false;
 
   const device = await getDevice();
   // console.log("Using WebGPU device:", device.__id);
@@ -154,7 +155,7 @@ export async function initWebGPU(
     );
 
     updateNormals = true;
-    updateTexture = true;
+    updateShadowTexture = true;
   }
 
   window.addEventListener("mousemove", onMouseMove);
@@ -515,12 +516,12 @@ export async function initWebGPU(
     }
 
     if (frameIdx === 0 || mouse0Held || mouse1Held) {
-      updateTexture = true;
+      updateTerrainTexture = true;
       updateNormals = true;
     }
 
     // Normal Compute: prev -> next in chosen direction
-    if (updateNormals) {
+    if (updateNormals || updateTerrainTexture) {
       const normalPass = encoder.beginComputePass({
         label: "Normal Compute Pass",
       });
@@ -535,7 +536,7 @@ export async function initWebGPU(
     }
 
     // output compute pass
-    if (updateTexture) {
+    if (updateTerrainTexture) {
       const terrainRenderPass = encoder.beginComputePass({
         label: "Terrain Texture Compute Pass",
       });
@@ -546,13 +547,11 @@ export async function initWebGPU(
       );
       terrainRenderPass.dispatchWorkgroups(dispatchX, dispatchY, 1);
       terrainRenderPass.end();
-
-      updateTexture = false;
       // console.log("Updated Terrain Texture");
     }
 
     // output compute pass
-    if (true) {
+    if (updateShadowTexture || updateTerrainTexture) {
       const shadowRenderPass = encoder.beginComputePass({
         label: "Shadow Texture Compute Pass",
       });
@@ -563,8 +562,6 @@ export async function initWebGPU(
       );
       shadowRenderPass.dispatchWorkgroups(dispatchX, dispatchY, 1);
       shadowRenderPass.end();
-
-      updateTexture = false;
       // console.log("Updated Shadow Texture");
     }
 
@@ -585,6 +582,15 @@ export async function initWebGPU(
 
     const err = await device.popErrorScope();
     if (err) console.error("Validation error:", err.message);
+
+    if(updateTerrainTexture || updateShadowTexture || updateNormals)
+    {
+      console.log(`Update: N (${updateNormals}), T (${updateTerrainTexture}), S (${updateShadowTexture})`)
+    }
+
+    updateTerrainTexture = false;
+    updateShadowTexture = false;
+    updateNormals = false;
 
     frameIdx++;
 

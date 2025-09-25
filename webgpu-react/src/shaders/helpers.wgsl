@@ -220,7 +220,85 @@ fn makeCombinedShadowLayer(shadowRgb: vec3<f32>, s: f32, shade: f32) -> vec4<f32
   return vec4<f32>(topRgb, a);
 }
 
-fn getTerrainOutlineColor() -> -> vec4<f32> 
+// Gets a highlight or shade color based on terrain height
+fn getTerrainOutlineColor(coord : vec2<u32>, lightDir: vec3<f32>, shadeColor: vec4<f32>, highlightColor: vec4<f32>, inShadow: bool) -> vec4<f32> 
 {
   
+  let x = coord.x;
+  let y = coord.y;
+
+  let currentHeight = roundedCellHeight(coord);
+
+  // get surrounding heights
+  let nVal0 = roundedCellHeight(vec2<u32>(u32(i32(x) + 0), u32(i32(y) + 1)));
+  let nVal1 = roundedCellHeight(vec2<u32>(u32(i32(x) + 1), u32(i32(y) + 1)));
+  let nVal2 = roundedCellHeight(vec2<u32>(u32(i32(x) + 1), u32(i32(y) + 0)));
+  let nVal3 = roundedCellHeight(vec2<u32>(u32(i32(x) + 1), u32(i32(y) - 1)));
+  let nVal4 = roundedCellHeight(vec2<u32>(u32(i32(x) + 0), u32(i32(y) - 1)));
+  let nVal5 = roundedCellHeight(vec2<u32>(u32(i32(x) - 1), u32(i32(y) - 1)));
+  let nVal6 = roundedCellHeight(vec2<u32>(u32(i32(x) - 1), u32(i32(y) + 0)));
+  let nVal7 = roundedCellHeight(vec2<u32>(u32(i32(x) - 1), u32(i32(y) + 1)));
+
+  var normalOutline = vec4f(0.0, 0.0, 0.0, 0.0);
+
+  // axis feather width in direction space (tweak 0.08..0.2)
+  let k = 30.0;
+
+  // weights that go to 1 near the seam (x≈0 or z≈0)
+  let sx = 1.0 - smoothstep(k, 2.0*k, abs(lightDir.x));
+  let sz = 1.0 - smoothstep(k, 2.0*k, abs(lightDir.z));
+
+  // --- compute your four triplet results exactly as before ---
+  let maxXp = max(max(nVal2, nVal1), nVal3);
+  let minXp = min(min(nVal2, nVal1), nVal3);
+  let maxXn = max(max(nVal6, nVal7), nVal5);
+  let minXn = min(min(nVal6, nVal7), nVal5);
+  let maxZp = max(max(nVal0, nVal7), nVal1);
+  let minZp = min(min(nVal0, nVal7), nVal1);
+  let maxZn = max(max(nVal4, nVal5), nVal3);
+  let minZn = min(min(nVal4, nVal5), nVal3);
+
+  // base directional weights (no branching)
+  var wxp = max(lightDir.x, 0.0);
+  var wxn = max(-lightDir.x, 0.0);
+  var wzp = max(lightDir.z, 0.0);
+  var wzn = max(-lightDir.z, 0.0);
+
+  // add a tiny floor so weights never hit exact 0 at the seam
+  let epsW = 1e-3;
+  wxp += epsW; wxn += epsW; wzp += epsW; wzn += epsW;
+
+  // normalize
+  let wsum = wxp + wxn + wzp + wzn;
+  let WXp = wxp / wsum;
+  let WXn = wxn / wsum;
+  let WZp = wzp / wsum;
+  let WZn = wzn / wsum;
+
+  // pre-blend (no seam)
+  var blendedMax = WXp*maxXp + WXn*maxXn + WZp*maxZp + WZn*maxZn;
+  var blendedMin = WXp*minXp + WXn*minXn + WZp*minZp + WZn*minZn;
+
+  // axis cross-fade: when near x=0, mix X+ and X−; when near z=0, mix Z+ and Z−
+  let maxX_axis = mix(maxXp, maxXn, 0.5 + 0.5*sign(-lightDir.x)); // equal when |x| small
+  let minX_axis = mix(minXp, minXn, 0.5 + 0.5*sign(-lightDir.x));
+  let maxZ_axis = mix(maxZp, maxZn, 0.5 + 0.5*sign(-lightDir.z));
+  let minZ_axis = mix(minZp, minZn, 0.5 + 0.5*sign(-lightDir.z));
+
+  // stronger replacement only *near* axes
+  blendedMax = mix(blendedMax, 0.5*(maxX_axis + maxZ_axis), max(sx, sz));
+  blendedMin = mix(blendedMin, 0.5*(minX_axis + minZ_axis), max(sx, sz));
+
+  let E = 1e-4;  // tiny dead zone to avoid flicker on flats
+  if (blendedMax > currentHeight + E) 
+  {
+      normalOutline = shadeColor;
+  } 
+  // Only apply highlight when not in shadow
+  else if (!inShadow && blendedMin < currentHeight - E) 
+  {
+      normalOutline = highlightColor;
+  }
+
+  return normalOutline;
 }
