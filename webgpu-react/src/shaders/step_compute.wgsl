@@ -11,7 +11,13 @@ fn step(@builtin(global_invocation_id) gid : vec3<u32>) {
     // Mouse "paint" demo (writes to next)
     let mouse0Held   = uInput.mouse0Held > 0.5;
     let mouse1Held   = uInput.mouse1Held > 0.5;
-    
+
+    let dSqrd = distanceSqrd(vec2<u32>(x,y), uInput.mousePos);
+    let radiusSqrd = uInput.mouseRadius * uInput.mouseRadius;
+    var radiusT = clamp((radiusSqrd - dSqrd) / radiusSqrd, 0.0, 1.0);
+    radiusT = radiusT * radiusT;
+    let inside = dSqrd <= radiusSqrd;
+
     // height editing
     // if(mouse0Held || mouse1Held)
     // {
@@ -29,16 +35,17 @@ fn step(@builtin(global_invocation_id) gid : vec3<u32>) {
     // Fluid editing
     if(mouse0Held || mouse1Held)
     {
-        let inside = inside_circle(vec2<u32>(x,y), uInput.mousePos, uInput.mouseRadius);
+        //let inside = inside_circle(vec2<u32>(x,y), uInput.mousePos, uInput.mouseRadius);
         if (mouse0Held && inside) {
-            out.fAmount = out.fAmount + 1.0;
+            out.fAmount = out.fAmount + 1.0 * radiusT;
         }
         else if (mouse1Held && inside) {
-            out.fAmount = out.fAmount - 1.0;
+            out.fAmount = out.fAmount - 1.0 * radiusT;
         }
     }
     // Clamp
-    out.fAmount = clamp(out.fAmount, 0.0, uTerrain.maxCellValue);
+    let cellmax = uTerrain.maxCellValue * 2 - out.height;
+    out.fAmount = clamp(out.fAmount, 0.0, cellmax);
 
     nextCells[i] = out;
 }

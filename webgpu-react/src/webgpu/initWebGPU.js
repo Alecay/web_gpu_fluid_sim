@@ -8,11 +8,13 @@ import {
 } from "./buffers/terrainBuffer";
 import { createOrUpdateViewBuffer } from "./buffers/viewBuffer";
 import { createOrUpdateInputBuffer } from "./buffers/inputBuffer";
-import { createOrUpdateBuffer } from "./buffers/wgslPacker";
 
 export async function initWebGPU(
   canvas,
-  noiseSettings = defaultNoiseUISettings
+  noiseSettings = defaultNoiseUISettings,
+  input,
+  setInput,
+  setCursorQuery
 ) {
   if (!canvas) return () => {};
 
@@ -52,10 +54,10 @@ export async function initWebGPU(
     code: shaderCode,
   });
 
-  var mousePosition = { x: 0, y: 0 };
-  var mouse0Held = false;
-  var mouse1Held = false;
-  var mouseRadius = 30;
+  // var mousePosition = { x: 0, y: 0 };
+  // var mouse0Held = false;
+  // var mouse1Held = false;
+  // var mouseRadius = 30;
 
   var currentTime = 0;
 
@@ -78,10 +80,10 @@ export async function initWebGPU(
   }
 
   const inputUniformBuffer = createOrUpdateInputBuffer(device, {
-    mousePos: mousePosition,
-    mouse0Held: mouse0Held,
-    mouse1Held: mouse1Held,
-    mouseRadius: mouseRadius,
+    mousePos: input.mousePosition,
+    mouse0Held: input.mouse0Held,
+    mouse1Held: input.mouse1Held,
+    mouseRadius: input.mouseRadius,
   });
 
   const terrainBuffer = createOrUpdateTerrainParamsBuffer(
@@ -99,6 +101,11 @@ export async function initWebGPU(
     noiseSettings.colors
   );
 
+  function updateInput(i) {
+    input = i;
+    setInput(i);
+  }
+
   // ----- Mouse handling -----
   function onMouseMove(e) {
     const rect = canvas.getBoundingClientRect();
@@ -106,24 +113,29 @@ export async function initWebGPU(
     const scaleY = canvas.height / rect.height;
     const mx = Math.floor((e.clientX - rect.left) * scaleX);
     const my = Math.floor((e.clientY - rect.top) * scaleY);
-    mousePosition = {
-      x: Math.min(Math.max(mx, 0), noiseSettings.width - 1),
-      y: Math.min(Math.max(my, 0), noiseSettings.height - 1),
-    };
+
+    updateInput({
+      ...input,
+      mousePosition: {
+        x: Math.min(Math.max(mx, 0), noiseSettings.width - 1),
+        y: Math.min(Math.max(my, 0), noiseSettings.height - 1),
+      },
+      mouseMoved: true,
+    });
 
     updateInputBuffer();
   }
 
   function onMouseDown(e) {
-    if (e.button === 0) mouse0Held = true;
-    if (e.button === 2) mouse1Held = true;
+    if (e.button === 0) updateInput({ ...input, mouse0Held: true });
+    if (e.button === 2) updateInput({ ...input, mouse1Held: true });
 
     updateInputBuffer();
   }
 
   function onMouseUp(e) {
-    if (e.button === 0) mouse0Held = false;
-    if (e.button === 2) mouse1Held = false;
+    if (e.button === 0) updateInput({ ...input, mouse0Held: false });
+    if (e.button === 2) updateInput({ ...input, mouse1Held: false });
 
     updateInputBuffer();
   }
@@ -132,9 +144,11 @@ export async function initWebGPU(
     e.preventDefault(); // stop the page from scrolling
 
     const sign = Math.sign(e.deltaY) * -1;
-    const amount = 0.1 * mouseRadius * sign;
-    mouseRadius = Math.max(5, mouseRadius + amount);
-
+    const amount = 0.1 * input.mouseRadius * sign;
+    updateInput({
+      ...input,
+      mouseRadius: Math.max(5, input.mouseRadius + amount),
+    });
     updateInputBuffer();
   }
 
@@ -146,10 +160,10 @@ export async function initWebGPU(
     createOrUpdateInputBuffer(
       device,
       {
-        mousePos: mousePosition,
-        mouse0Held: mouse0Held,
-        mouse1Held: mouse1Held,
-        mouseRadius: mouseRadius,
+        mousePos: input.mousePosition,
+        mouse0Held: input.mouse0Held,
+        mouse1Held: input.mouse1Held,
+        mouseRadius: input.mouseRadius,
       },
       inputUniformBuffer
     );
@@ -222,6 +236,18 @@ export async function initWebGPU(
     device.queue.writeBuffer(prevCellsBuffer, 0, init);
     device.queue.writeBuffer(nextCellsBuffer, 0, init);
   }
+
+  const cursorQueryBuffer = device.createBuffer({
+    label: "Cursor Query",
+    size: 64,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+  });
+
+  const cursorQueryReadback = device.createBuffer({
+    label: "Cursor Query Readback",
+    size: 64,
+    usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
+  });
 
   // ----- Bind group layouts -----
   // Compute: 0=uniform, 1=prev(read), 2=next(write)
@@ -318,6 +344,47 @@ export async function initWebGPU(
     ],
   });
 
+  const cursorQueryBGL = device.createBindGroupLayout({
+    label: "Cursor Query BGL",
+    entries: [
+      {
+        binding: 0,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: { type: "uniform" },
+      },
+      {
+        binding: 1,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: { type: "uniform" },
+      },
+      {
+        binding: 2,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: { type: "uniform" },
+      },
+      {
+        binding: 3,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: { type: "storage" },
+      },
+      {
+        binding: 4,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: { type: "read-only-storage" },
+      },
+      {
+        binding: 5,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: { type: "storage" },
+      },
+      {
+        binding: 6,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: { type: "storage" },
+      },
+    ],
+  });
+
   // Render: 0=uniform, 1=current(read) for fragment
   const renderBGL = device.createBindGroupLayout({
     label: "Render BGL",
@@ -354,6 +421,15 @@ export async function initWebGPU(
       label: "Normal Compute Pipeline Layout",
     }),
     compute: { module, entryPoint: "calc_normals" },
+  });
+
+  const cursorQueryPipeline = device.createComputePipeline({
+    label: "Cursor Query Pipeline",
+    layout: device.createPipelineLayout({
+      bindGroupLayouts: [cursorQueryBGL],
+      label: "Cursor Query Pipeline Layout",
+    }),
+    compute: { module, entryPoint: "cursor_query" },
   });
 
   const terrainTextureComputePipeline = device.createComputePipeline({
@@ -430,6 +506,34 @@ export async function initWebGPU(
     ],
   });
 
+  const cursorQueryBG_A = device.createBindGroup({
+    label: "Cursor Query A",
+    layout: cursorQueryBGL,
+    entries: [
+      { binding: 0, resource: { buffer: viewUniformBuffer } },
+      { binding: 1, resource: { buffer: inputUniformBuffer } },
+      { binding: 2, resource: { buffer: terrainBuffer } },
+      { binding: 3, resource: { buffer: prevCellsBuffer } }, // prev
+      { binding: 4, resource: { buffer: terrainColorsBuffer } },
+      { binding: 5, resource: { buffer: outputTextureBuffer } },
+      { binding: 6, resource: { buffer: cursorQueryBuffer } },
+    ],
+  });
+
+  const cursorQueryBG_B = device.createBindGroup({
+    label: "Cursor Query B",
+    layout: cursorQueryBGL,
+    entries: [
+      { binding: 0, resource: { buffer: viewUniformBuffer } },
+      { binding: 1, resource: { buffer: inputUniformBuffer } },
+      { binding: 2, resource: { buffer: terrainBuffer } },
+      { binding: 3, resource: { buffer: nextCellsBuffer } }, // next
+      { binding: 4, resource: { buffer: terrainColorsBuffer } },
+      { binding: 5, resource: { buffer: outputTextureBuffer } },
+      { binding: 6, resource: { buffer: cursorQueryBuffer } },
+    ],
+  });
+
   const outputTextureBG_showA = device.createBindGroup({
     label: "Output Texture BG show A",
     layout: outputTextureComputeBGL,
@@ -488,8 +592,8 @@ export async function initWebGPU(
   };
 
   // ----- Dispatch sizes (match @workgroup_size in WGSL) -----
-  const WG_X = 16,
-    WG_Y = 16;
+  const WG_X = 16;
+  const WG_Y = 16;
   const dispatchX = Math.ceil(noiseSettings.width / WG_X);
   const dispatchY = Math.ceil(noiseSettings.height / WG_Y);
 
@@ -499,6 +603,12 @@ export async function initWebGPU(
   let frameIdx = 0;
   async function frame(tMs = 0) {
     if (context.__deviceId !== device.__id) return;
+
+    const preformQuery =
+      input.mouseMoved ||
+      input.mouse0Held ||
+      input.mouse1Held ||
+      input.mouse2Held;
 
     await device.pushErrorScope("validation");
     currentTime = tMs * 0.001;
@@ -515,7 +625,7 @@ export async function initWebGPU(
       stepPass.end();
     }
 
-    if (frameIdx === 0 || mouse0Held || mouse1Held) {
+    if (frameIdx === 0 || input.mouse0Held || input.mouse1Held) {
       updateTerrainTexture = true;
       updateNormals = true;
     }
@@ -529,8 +639,6 @@ export async function initWebGPU(
       normalPass.setBindGroup(0, aToB ? normalComputeBG_B : normalComputeBG_A);
       normalPass.dispatchWorkgroups(dispatchX, dispatchY, 1);
       normalPass.end();
-
-      updateNormals = false;
 
       // console.log("Updated normals");
     }
@@ -565,6 +673,18 @@ export async function initWebGPU(
       // console.log("Updated Shadow Texture");
     }
 
+    // query
+    if (preformQuery) {
+      const cursorQueryPass = encoder.beginComputePass({
+        label: "Cursor Query Pass",
+      });
+      cursorQueryPass.setPipeline(cursorQueryPipeline);
+      cursorQueryPass.setBindGroup(0, aToB ? cursorQueryBG_B : cursorQueryBG_A);
+      cursorQueryPass.dispatchWorkgroups(1, 1, 1);
+      cursorQueryPass.end();
+      console.log("Cursor query");
+    }
+
     // Render: show the buffer we just wrote
     renderPassDesc.colorAttachments[0].view = context
       .getCurrentTexture()
@@ -578,6 +698,14 @@ export async function initWebGPU(
       rpass.end();
     }
 
+    if (preformQuery)
+      encoder.copyBufferToBuffer(
+        cursorQueryBuffer,
+        0,
+        cursorQueryReadback,
+        0,
+        64
+      );
     device.queue.submit([encoder.finish()]);
 
     const err = await device.popErrorScope();
@@ -586,10 +714,31 @@ export async function initWebGPU(
     if (updateTerrainTexture || updateShadowTexture || updateNormals) {
       // console.log(`Update: N (${updateNormals}), T (${updateTerrainTexture}), S (${updateShadowTexture})`)
     }
+    if (preformQuery) {
+      // await device.queue.onSubmittedWorkDone();
+      await cursorQueryReadback.mapAsync(GPUMapMode.READ);
+      const mapped = cursorQueryReadback.getMappedRange(); // ArrayBuffer
+      const dv = new DataView(mapped);
+
+      // ---- unpack with correct offsets
+      const height = dv.getFloat32(0, true); // @0
+      const nx = dv.getFloat32(16, true); // @16
+      const ny = dv.getFloat32(20, true); // @20
+      const nz = dv.getFloat32(24, true); // @24
+      const fAmount = dv.getFloat32(28, true); // @32
+      // _pad0 lives at 48.. (ignored)
+
+      const cursorQuery = { height, normal: { x: nx, y: ny, z: nz }, fAmount };
+      setCursorQuery(cursorQuery);
+
+      cursorQueryReadback.unmap();
+    }
 
     updateTerrainTexture = false;
     updateShadowTexture = false;
     updateNormals = false;
+
+    updateInput({ ...input, mouseMoved: false });
 
     frameIdx++;
 

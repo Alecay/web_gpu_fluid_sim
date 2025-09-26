@@ -1,3 +1,4 @@
+import React from "react";
 import { useEffect, useMemo, useState } from "react";
 import { Button, Card, Col, Form, InputGroup, Row } from "react-bootstrap";
 
@@ -39,7 +40,7 @@ export interface NoiseUISettings {
 
 /** Reasonable defaults */
 export const defaultNoiseUISettings: NoiseUISettings = {
-  noiseType: "Perlin",
+  noiseType: "OpenSimplex2S",
   seed: 42,
   fractalOctaves: 6,
   fractalLacunarity: 1.7,
@@ -47,11 +48,13 @@ export const defaultNoiseUISettings: NoiseUISettings = {
   fractalType: "FBm",
   frequency: 0.003,
 
+  // width: 1920, // 960,
+  // height: 1080, // 540,
   width: 960,
   height: 540,
   maxCellValue: 100.0,
   terrainHeightMultiplier: 0.85,
-  colorSteps: 25,
+  colorSteps: 20,
   numberOfTerrainColors: 7,
 
   colors: [
@@ -75,7 +78,11 @@ interface Props {
   title?: string;
 }
 
-export default function NoiseSettingsForm({
+export default React.memo(NoiseSettingsForm, (prev, next) => {
+  return prev.initial === next.initial && prev.title === next.title; // intentionally ignore `input`
+});
+
+function NoiseSettingsForm({
   initial,
   onChange,
   onApply,

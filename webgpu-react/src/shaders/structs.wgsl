@@ -28,3 +28,9 @@ struct TerrainParams {
   numberOfTerrainColors   : u32,   // gradient array length
   _padT0                  : vec2<f32>,
 };
+
+struct CursorQuery
+{
+    // Current cell
+    cell : CellData
+};

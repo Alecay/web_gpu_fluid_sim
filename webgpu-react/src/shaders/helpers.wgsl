@@ -3,9 +3,14 @@ fn idx(x : u32, y : u32) -> u32 {
     return y * uView.size.x + x;
 }
 
+fn distanceSqrd(p: vec2<u32>, c: vec2<u32>) -> f32
+{
+  let d = vec2<f32>(f32(i32(p.x) - i32(c.x)), f32(i32(p.y) - i32(c.y)));
+  return dot(d, d);
+}
+
 fn inside_circle(p: vec2<u32>, c: vec2<u32>, radius: f32) -> bool {
-    let d = vec2<f32>(f32(i32(p.x) - i32(c.x)), f32(i32(p.y) - i32(c.y)));
-    return dot(d, d) <= radius * radius;
+    return distanceSqrd(p, c) <= radius * radius;
 }
 
 fn lerp4(a: vec4f, b: vec4f, t: f32) -> vec4f {

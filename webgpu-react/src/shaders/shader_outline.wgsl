@@ -34,3 +34,6 @@
 @group(0) @binding(4) var<storage, read_write> nextCells : array<CellData>;
 
 //{step_compute}
+
+@group(0) @binding(6) var<storage, read_write> cursorQuery : CursorQuery;
+//{cursor_query}

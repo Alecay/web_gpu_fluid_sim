@@ -30,6 +30,20 @@ export function generateNoiseMap(
       out.push(normalizedValue);
     }
   }
+
+  // calcualte the min and max values
+  var min = 0,
+    max = 0;
+  for (let i = 0; i < out.length; i++) {
+    if (out[i] < min || i == 0) min = out[i];
+    if (out[i] > max || i == 0) max = out[i];
+  }
+
+  // normalize the values into this range
+  for (let i = 0; i < out.length; i++) {
+    out[i] = (out[i] - min) / (max - min);
+  }
+
   return out;
 }
 
