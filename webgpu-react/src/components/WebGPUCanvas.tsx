@@ -8,6 +8,8 @@ import { Input } from "@/interfaces/Input";
 import { CursorQuery } from "@/interfaces/CursorQuery";
 
 interface WebGPUCanvasProps {
+  canvasSize: { width: number; height: number };
+  canvasPosition: { x: number; y: number };
   style?: React.CSSProperties; // e.g., { width: '100%', height: '80vh' }
   noiseSettings?: NoiseUISettings;
   input: Input;
@@ -19,12 +21,17 @@ interface WebGPUCanvasProps {
 // Only re-render when noiseSettings changes
 export default React.memo(WebGPUCanvas, (prev, next) => {
   return (
-    prev.noiseSettings === next.noiseSettings && prev.children === next.children
+    prev.noiseSettings === next.noiseSettings &&
+    prev.children === next.children &&
+    prev.canvasSize === next.canvasSize &&
+    prev.canvasPosition === next.canvasPosition
   );
 });
 
 function WebGPUCanvas({
   style,
+  canvasSize,
+  canvasPosition,
   noiseSettings = defaultNoiseUISettings,
   input,
   setInput,
@@ -87,10 +94,13 @@ function WebGPUCanvas({
         ref={canvasRef}
         style={{
           ...style, // e.g., { width:'100%', height:'80vh' }
-          position: "absolute",
+          width: canvasSize.width,
+          height: canvasSize.height,
           inset: 0, // top:0,left:0,right:0,bottom:0
           zIndex: 0,
           display: "block", // avoid inline gaps
+          left: `${Math.round(canvasPosition.x)}px`,
+          top: `${Math.round(canvasPosition.y)}px`,
         }}
       />
       <div

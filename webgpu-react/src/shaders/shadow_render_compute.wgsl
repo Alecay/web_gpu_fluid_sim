@@ -36,16 +36,6 @@ fn shadow_render(@builtin(global_invocation_id) gid : vec3<u32>) {
     var normalOutline = getTerrainOutlineColor(coord, lightDir, shadeColor, highlightColor, castedShadowColor.a < 1e-4);
 
 
-    // Draw a ring cursor (visual only)
-    let mouseWidth  = 3.0;
-    let inOuter = inside_circle(vec2<u32>(x,y), uInput.mousePos, uInput.mouseRadius);
-    let inInner = inside_circle(vec2<u32>(x,y), uInput.mousePos, uInput.mouseRadius - mouseWidth);
-    var cursorOutline = clear;
-    if (inOuter && !inInner) 
-    {
-        cursorOutline = vec4f(0.0, 0.0, 0.0, 0.5);
-    }
-
     // Compute the final shadow color
     var finalColor = clear;
     if(uTerrain.colorSteps < 100)
@@ -69,7 +59,6 @@ fn shadow_render(@builtin(global_invocation_id) gid : vec3<u32>) {
         //castedShadowColor = vec4f(castedShadowColor.rgb, castedShadowColor.a * 0.1);
     }
     finalColor = over_rgba(finalColor, castedShadowColor);
-    finalColor = over_rgba(finalColor, cursorOutline);
 
     let idOffset = uView.size.x * uView.size.y;
     outputTex[idx(x,y) + idOffset] = finalColor;

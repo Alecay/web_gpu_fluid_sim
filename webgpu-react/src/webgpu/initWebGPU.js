@@ -168,17 +168,17 @@ export async function initWebGPU(
       inputUniformBuffer
     );
 
-    updateNormals = true;
-    updateShadowTexture = true;
+    // updateNormals = true;
+    // updateShadowTexture = true;
   }
 
   window.addEventListener("mousemove", onMouseMove);
   window.addEventListener("mouseup", onMouseUp);
 
   // Canvas mouse down to avoid clicks outside the game bounds
-  canvas.addEventListener("contextmenu", preventContext);
-  canvas.addEventListener("mousedown", onMouseDown);
-  canvas.addEventListener("wheel", onMouseScroll, { passive: false });
+  window.addEventListener("contextmenu", preventContext);
+  window.addEventListener("mousedown", onMouseDown);
+  window.addEventListener("wheel", onMouseScroll, { passive: false });
 
   // Create output texture buffer
   const outputTextureBuffer = device.createBuffer({
@@ -395,6 +395,11 @@ export async function initWebGPU(
         buffer: { type: "uniform" },
       },
       {
+        binding: 1,
+        visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+        buffer: { type: "uniform" },
+      },
+      {
         binding: 5,
         visibility: GPUShaderStage.FRAGMENT,
         buffer: { type: "storage" },
@@ -565,6 +570,7 @@ export async function initWebGPU(
     layout: renderBGL,
     entries: [
       { binding: 0, resource: { buffer: viewUniformBuffer } },
+      { binding: 1, resource: { buffer: inputUniformBuffer } },
       { binding: 5, resource: { buffer: outputTextureBuffer } },
     ],
   });
@@ -574,6 +580,7 @@ export async function initWebGPU(
     layout: renderBGL,
     entries: [
       { binding: 0, resource: { buffer: viewUniformBuffer } },
+      { binding: 1, resource: { buffer: inputUniformBuffer } },
       { binding: 5, resource: { buffer: outputTextureBuffer } },
     ],
   });
@@ -755,9 +762,9 @@ export async function initWebGPU(
     window.removeEventListener("mousemove", onMouseMove);
     window.removeEventListener("mouseup", onMouseUp);
 
-    canvas.removeEventListener("contextmenu", preventContext);
-    canvas.removeEventListener("mousedown", onMouseDown);
-    canvas.removeEventListener("wheel", onMouseScroll);
+    window.removeEventListener("contextmenu", preventContext);
+    window.removeEventListener("mousedown", onMouseDown);
+    window.removeEventListener("wheel", onMouseScroll);
 
     viewUniformBuffer.destroy();
     inputUniformBuffer.destroy();
@@ -768,6 +775,8 @@ export async function initWebGPU(
     outputTextureBuffer.destroy();
   };
   canvas.__wgpuCleanup = cleanup;
+
+  console.log("Init canvas");
 
   // Also return cleanup so caller can manually stop if needed
   return cleanup;
