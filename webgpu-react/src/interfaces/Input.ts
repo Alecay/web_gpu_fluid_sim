@@ -1,3 +1,5 @@
+import { VisibleRect } from "./VisibleRect";
+
 export interface Input {
   mouse0Held: boolean;
   mouse1Held: boolean;
@@ -5,6 +7,7 @@ export interface Input {
   mouseRadius: number;
   mouseMoved: boolean;
   mousePosition: { x: number; y: number };
+  visibleRect: VisibleRect;
 }
 
 export const DefaultInput: Input = {
@@ -14,4 +17,12 @@ export const DefaultInput: Input = {
   mouseRadius: 30,
   mouseMoved: false,
   mousePosition: { x: 0, y: 0 },
+  visibleRect: {
+    x0: 0,
+    y0: 0,
+    x1: 0,
+    y1: 0,
+    width: 0,
+    height: 0,
+  },
 };

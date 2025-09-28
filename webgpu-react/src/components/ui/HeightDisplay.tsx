@@ -9,8 +9,12 @@ export default function HeightDisplay({ cursorQuery }: HeightDisplayProps) {
   const maxHeight = 150.0;
   const width = 50.0;
   const fontSize = 20;
-  const height = Math.ceil(cursorQuery.height);
-  const fAmount = Math.ceil(cursorQuery.fAmount);
+  var height = Math.ceil(cursorQuery.height);
+  var fAmount = Math.ceil(cursorQuery.fAmount);
+
+  if (fAmount + height > maxCellValue) {
+    fAmount = maxCellValue - height;
+  }
 
   const heightPX = (height / maxCellValue) * maxHeight;
   const fAmountPX = (fAmount / maxCellValue) * maxHeight;
@@ -30,7 +34,7 @@ export default function HeightDisplay({ cursorQuery }: HeightDisplayProps) {
           width: `${width}px`,
           height: `${maxHeight}px`,
           border: "solid 4px white",
-          borderRadius: "5px 5px 0px 0px",
+          // borderRadius: "5px 5px 0px 0px",
           zIndex: 2,
         }}
       />

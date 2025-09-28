@@ -9,6 +9,14 @@ import {
 import { createOrUpdateViewBuffer } from "./buffers/viewBuffer";
 import { createOrUpdateInputBuffer } from "./buffers/inputBuffer";
 
+/**
+ * @param {HTMLCanvasElement | null} canvas
+ * @param {NoiseUISettings} noiseSettings
+ * @param {Input} input
+ * @param {import('react').Dispatch<import('react').SetStateAction<Input>>} setInput
+ * @param {import('react').Dispatch<import('react').SetStateAction<CursorQuery>>} setCursorQuery
+ * @returns {Promise<WebGPUHandle>}
+ */
 export async function initWebGPU(
   canvas,
   noiseSettings = defaultNoiseUISettings,
@@ -106,64 +114,19 @@ export async function initWebGPU(
     setInput(i);
   }
 
-  // ----- Mouse handling -----
-  function onMouseMove(e) {
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    const mx = Math.floor((e.clientX - rect.left) * scaleX);
-    const my = Math.floor((e.clientY - rect.top) * scaleY);
-
-    updateInput({
-      ...input,
-      mousePosition: {
-        x: Math.min(Math.max(mx, 0), noiseSettings.width - 1),
-        y: Math.min(Math.max(my, 0), noiseSettings.height - 1),
-      },
-      mouseMoved: true,
-    });
-
-    updateInputBuffer();
-  }
-
-  function onMouseDown(e) {
-    if (e.button === 0) updateInput({ ...input, mouse0Held: true });
-    if (e.button === 2) updateInput({ ...input, mouse1Held: true });
-
-    updateInputBuffer();
-  }
-
-  function onMouseUp(e) {
-    if (e.button === 0) updateInput({ ...input, mouse0Held: false });
-    if (e.button === 2) updateInput({ ...input, mouse1Held: false });
-
-    updateInputBuffer();
-  }
-
-  function onMouseScroll(e) {
-    e.preventDefault(); // stop the page from scrolling
-
-    const sign = Math.sign(e.deltaY) * -1;
-    const amount = 0.1 * input.mouseRadius * sign;
-    updateInput({
-      ...input,
-      mouseRadius: Math.max(5, input.mouseRadius + amount),
-    });
-    updateInputBuffer();
-  }
-
-  function preventContext(e) {
-    e.preventDefault();
-  }
-
-  function updateInputBuffer() {
+  /**
+   * @param {Input} newInput
+   * @returns {Promise<null>}
+   */
+  function updateInputBuffer(newInput) {
+    input = newInput;
     createOrUpdateInputBuffer(
       device,
       {
-        mousePos: input.mousePosition,
-        mouse0Held: input.mouse0Held,
-        mouse1Held: input.mouse1Held,
-        mouseRadius: input.mouseRadius,
+        mousePos: newInput.mousePosition,
+        mouse0Held: newInput.mouse0Held,
+        mouse1Held: newInput.mouse1Held,
+        mouseRadius: newInput.mouseRadius,
       },
       inputUniformBuffer
     );
@@ -172,13 +135,13 @@ export async function initWebGPU(
     // updateShadowTexture = true;
   }
 
-  window.addEventListener("mousemove", onMouseMove);
-  window.addEventListener("mouseup", onMouseUp);
+  // window.addEventListener("mousemove", onMouseMove);
+  // window.addEventListener("mouseup", onMouseUp);
 
   // Canvas mouse down to avoid clicks outside the game bounds
-  window.addEventListener("contextmenu", preventContext);
-  window.addEventListener("mousedown", onMouseDown);
-  window.addEventListener("wheel", onMouseScroll, { passive: false });
+  // window.addEventListener("contextmenu", preventContext);
+  // window.addEventListener("mousedown", onMouseDown);
+  // window.addEventListener("wheel", onMouseScroll, { passive: false });
 
   // Create output texture buffer
   const outputTextureBuffer = device.createBuffer({
@@ -689,7 +652,6 @@ export async function initWebGPU(
       cursorQueryPass.setBindGroup(0, aToB ? cursorQueryBG_B : cursorQueryBG_A);
       cursorQueryPass.dispatchWorkgroups(1, 1, 1);
       cursorQueryPass.end();
-      console.log("Cursor query");
     }
 
     // Render: show the buffer we just wrote
@@ -759,12 +721,6 @@ export async function initWebGPU(
 
   const cleanup = () => {
     cancelAnimationFrame(rafId);
-    window.removeEventListener("mousemove", onMouseMove);
-    window.removeEventListener("mouseup", onMouseUp);
-
-    window.removeEventListener("contextmenu", preventContext);
-    window.removeEventListener("mousedown", onMouseDown);
-    window.removeEventListener("wheel", onMouseScroll);
 
     viewUniformBuffer.destroy();
     inputUniformBuffer.destroy();
@@ -779,5 +735,12 @@ export async function initWebGPU(
   console.log("Init canvas");
 
   // Also return cleanup so caller can manually stop if needed
-  return cleanup;
+
+  const handle = {
+    cleanup,
+    updateInputBuffer,
+    frame,
+  };
+
+  return handle;
 }
