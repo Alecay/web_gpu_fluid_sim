@@ -1,7 +1,7 @@
 struct View {
     size      : vec2<u32>, // width, height (pixels)
     time      : f32,       // seconds
-    _pad0     : f32,
+    simIndex  : u32,       // [0-inf] simulation passes
 };
 
 struct Input {

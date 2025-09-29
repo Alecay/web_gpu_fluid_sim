@@ -63,11 +63,13 @@ export async function initWebGPU(
   });
 
   var currentTime = 0;
+  var frameIdx = 0;
 
   const viewUniformBuffer = createOrUpdateViewBuffer(device, {
     width: noiseSettings.width,
     height: noiseSettings.height,
     time: 0,
+    simIndex: 0,
   });
 
   function updateViewBuffer() {
@@ -77,6 +79,7 @@ export async function initWebGPU(
         width: noiseSettings.width,
         height: noiseSettings.height,
         time: currentTime,
+        simIndex: frameIdx,
       },
       viewUniformBuffer
     );
@@ -198,6 +201,21 @@ export async function initWebGPU(
     usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
   });
 
+  const randomFlowDirectionsBuffer = device.createBuffer({
+    label: "Random Flow Directions Buffer",
+    size: 4 * noiseSettings.width * noiseSettings.height,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+  });
+
+  const randomDirections = new Float32Array(
+    noiseSettings.width * noiseSettings.height
+  );
+
+  for (let i = 0; i < randomDirections.length; i++) {
+    randomDirections[i] = Math.floor(Math.random() * (7 - 0 + 1)) + 0;
+  }
+  device.queue.writeBuffer(randomFlowDirectionsBuffer, 0, randomDirections);
+
   // ----- Bind group layouts -----
   // Compute: 0=uniform, 1=prev(read), 2=next(write)
   const stepComputeBGL = device.createBindGroupLayout({
@@ -227,6 +245,11 @@ export async function initWebGPU(
         binding: 4,
         visibility: GPUShaderStage.COMPUTE,
         buffer: { type: "storage" },
+      },
+      {
+        binding: 5,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: { type: "read-only-storage" },
       },
     ],
   });
@@ -423,6 +446,7 @@ export async function initWebGPU(
       { binding: 2, resource: { buffer: terrainBuffer } },
       { binding: 3, resource: { buffer: prevCellsBuffer } }, // read
       { binding: 4, resource: { buffer: nextCellsBuffer } }, // write
+      { binding: 5, resource: { buffer: randomFlowDirectionsBuffer } },
     ],
   });
 
@@ -435,6 +459,7 @@ export async function initWebGPU(
       { binding: 2, resource: { buffer: terrainBuffer } },
       { binding: 3, resource: { buffer: nextCellsBuffer } }, // read
       { binding: 4, resource: { buffer: prevCellsBuffer } }, // write
+      { binding: 5, resource: { buffer: randomFlowDirectionsBuffer } },
     ],
   });
 
@@ -556,7 +581,6 @@ export async function initWebGPU(
   // ----- Frame loop -----
   let aToB = true; // true => compute uses A->B and we render B this frame
   let rafId = 0;
-  let frameIdx = 0;
   async function frame(tMs = 0) {
     if (context.__deviceId !== device.__id) return;
 
@@ -575,10 +599,15 @@ export async function initWebGPU(
 
     // Step Compute: prev -> next in chosen direction
     {
+      const subSteps = 16;
       const stepPass = encoder.beginComputePass({ label: "Step Compute Pass" });
       stepPass.setPipeline(stepComputePipeline);
-      stepPass.setBindGroup(0, aToB ? computeBG_AtoB : computeBG_BtoA);
-      stepPass.dispatchWorkgroups(dispatchX, dispatchY, 1);
+      for (let i = 0; i < subSteps; i++) {
+        stepPass.setBindGroup(0, aToB ? computeBG_AtoB : computeBG_BtoA);
+        stepPass.dispatchWorkgroups(dispatchX, dispatchY, 1);
+        aToB = !aToB;
+      }
+
       stepPass.end();
     }
 
@@ -709,7 +738,7 @@ export async function initWebGPU(
     frameIdx++;
 
     // Flip for next frame (no copies, no buffer reassign)
-    aToB = !aToB;
+    //aToB = !aToB;
 
     rafId = requestAnimationFrame(frame);
   }

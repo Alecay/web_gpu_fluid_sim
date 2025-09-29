@@ -27,6 +27,16 @@ fn inBounds(x:u32, y:u32) -> bool
   return (x < uView.size.x) && (y < uView.size.y);
 }
 
+fn inBoundsV2U(coord: vec2<u32>) -> bool 
+{
+  return (coord.x < uView.size.x) && (coord.y < uView.size.y);
+}
+
+fn inBoundsV2I(coord: vec2<i32>) -> bool 
+{
+  return (coord.x < i32(uView.size.x)) && (coord.y < i32(uView.size.y)) && (coord.x >= 0i) && (coord.y >= 0i);
+}
+
 fn clampCoord(coord: vec2<u32>) -> vec2<u32> {
   let cx = clamp(coord.x, 0u, u32(uView.size.x) - 1u);
   let cy = clamp(coord.y, 0u, u32(uView.size.y) - 1u);

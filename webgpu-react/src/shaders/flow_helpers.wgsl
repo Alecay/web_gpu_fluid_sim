@@ -12,60 +12,65 @@ const OFFSETS : array<vec2<i32>, 8> = array<vec2<i32>, 8>(
 
 // Basic neighbor (signed coords). The caller should handle bounds.
 // Safe neighbor coord: clamps into [0, size-1]
-fn neighborCoord(coord: vec2<u32>, index: u32) -> vec2<u32> {
+fn neighborCoord(coord: vec2<i32>, index: u32) -> vec2<i32> {
   let idx = ((index % 8) + 8) % 8;  // normalize to 0..7
   let c   = vec2<i32>(coord);
   let n   = c + OFFSETS[idx];
-
-  // Clamp against grid bounds
-  let cx = u32(clamp(n.x, 0, i32(uView.size.x) - 1));
-  let cy = u32(clamp(n.y, 0, i32(uView.size.y) - 1));
-
-  return vec2<u32>(cx, cy);
+  return n;
 }
 
 fn getFurtureCellFAmount(coord: vec2<u32>) -> f32
 {
 	let cellValue = cellFAmount(coord);
-	let cellHeight = cellHeight(coord);
-	var futureCellValue = cellValue;		
+	let cellH = cellHeight(coord);
+	var futureCellValue = cellValue;
+	let maxCellValue : f32 = f32(uTerrain.maxCellValue) * 2.0;
 	
 	futureCellValue += getFlowChange(coord);
 	//futureCellValue += GetInteractionChange(coord.xy);
 	//futureCellValue += GetEmissionChange(coord.xy);
 	
     
-	futureCellValue = clamp(futureCellValue, 0, uTerrain.maxCellValue - cellHeight);
-	//futureCellValue = clamp(futureCellValue, -maxCellValue + cellHeight, maxCellValue - cellHeight);
+	// futureCellValue = clamp(futureCellValue, 0, uTerrain.maxCellValue - cellH);
+	futureCellValue = clamp(futureCellValue, -maxCellValue + cellH, maxCellValue - cellH);
 	
 	return futureCellValue;
 
 }
 
-fn highestNeighborIndex(coord: vec2<u32>) -> u32
+fn highestNeighborIndex(coord: vec2<i32>) -> u32
 {
 	var index : u32 = 0;
-	var nCoord = vec2<u32>(0, 0);
+	var nCoord = vec2<i32>(0, 0);
 	var nValue : f32 = -1.0;
 	var maxValue : f32 = -1.0;
 	var j : u32 = 0;
 	
     // cycle index? this steps index [0-8]
-    var cycleIndex : u32 = 0;
+    //var cycleIndex : u32 = uView.simIndex % 8;
 
     // get random starting index based on randomDirectionsBuffer values
-	var cIndex : u32 = 0;//(cycleIndex + randomDirectionsBuffer[idx(coord)]) % 8;
+	//var cIndex : u32 = (cycleIndex + u32(randomDirectionsBuffer[idx(u32(coord.x), u32(coord.y))])) % 8;
+
+	// using an odd multiplier (3, 5, or 7 all work). 3 is a good default.
+	let cycleIndex : u32 = (uView.simIndex * 3u) % 8u;
+
+	// keep your existing per-cell offset (randomDirectionsBuffer), but mod 8 explicitly
+	let baseOffset : u32 = u32(randomDirectionsBuffer[idx(u32(coord.x), u32(coord.y))]) % 8u;
+
+	// final start index
+	let cIndex     : u32 = (cycleIndex + baseOffset) % 8u;
 	
 	for (var i : u32 = 0; i < 8; i += 1)
 	{
 		j = (i + cIndex) % 8;
 		nCoord = neighborCoord(coord, j);
 		
-		if (!inBounds(nCoord.x, nCoord.y)) { continue; }
+		if (!inBoundsV2I(nCoord)) { continue; }
 		
-		nValue = roundedCombinedCellHeight(nCoord); //CellValue(nCoord);
+		nValue = roundedCombinedCellHeight(vec2<u32>(nCoord)); //CellValue(nCoord);
 		
-		if (index < 0 || nValue > maxValue)
+		if (index < 0 || nValue > maxValue || i == 0)
 		{
 			index = j;
 			maxValue = nValue;
@@ -75,6 +80,74 @@ fn highestNeighborIndex(coord: vec2<u32>) -> u32
 	return index;
 }
 
+fn lowestNeighborIndex(coord: vec2<i32>) -> u32
+{
+	var index : u32 = 0;
+	var nCoord = vec2<i32>(0, 0);
+	var nValue : f32 = -1.0;
+	var minValue : f32 = -1.0;
+	var j : u32 = 0;
+	
+    // cycle index? this steps index [0-8]
+    // var cycleIndex : u32 = uView.simIndex % 8;
+
+    // get random starting index based on randomDirectionsBuffer values
+	// var cIndex : u32 = (cycleIndex + u32(randomDirectionsBuffer[idx(u32(coord.x), u32(coord.y))])) % 8;
+
+	// using an odd multiplier (3, 5, or 7 all work). 3 is a good default.
+	let cycleIndex : u32 = (uView.simIndex * 3u) % 8u;
+
+	// keep your existing per-cell offset (randomDirectionsBuffer), but mod 8 explicitly
+	let baseOffset : u32 = u32(randomDirectionsBuffer[idx(u32(coord.x), u32(coord.y))]) % 8u;
+
+	// final start index
+	let cIndex     : u32 = (cycleIndex + baseOffset) % 8u;
+	
+	for (var i : u32 = 0; i < 8; i += 1)
+	{
+		j = (i + cIndex) % 8;
+		nCoord = neighborCoord(coord, j);
+		
+		if (!inBoundsV2I(nCoord)) { continue; }
+		
+		nValue = roundedCombinedCellHeight(vec2<u32>(nCoord)); //CellValue(nCoord);
+		
+		if (index < 0 || nValue < minValue || i == 0)
+		{
+			index = j;
+			minValue = nValue;
+		}
+	}
+	
+	return index;
+}
+
+fn directNeighorCount(coord : vec2<i32>) -> u32
+{
+	var count : u32 = 0;
+	var cellValue = cellFAmount(vec2<u32>(coord));
+	var isAnti : bool = cellValue < 0;
+	var nCoord : vec2<i32> = vec2<i32>(0, 0);
+	var nValue : f32 = 0.0;
+	
+	for (var i : u32 = 0; i < 8; i += 1)
+	{
+		nCoord = neighborCoord(coord, i);
+		
+		if (!inBoundsV2I(nCoord)) { continue; }
+				
+		nValue = cellFAmount(vec2<u32>(nCoord));
+		
+		if(nValue == 0) { continue; }
+		
+		if ((cellValue != 0) && (isAnti != (nValue < 0))) { continue; }
+		
+		count++;
+	}
+	
+	return count;
+}
+
 fn getFlowChange(coord: vec2<u32>) -> f32
 {
 	// if (cellMovementMultiplier <= 0)
@@ -82,12 +155,13 @@ fn getFlowChange(coord: vec2<u32>) -> f32
 	// 	return 0;
 	// }
 	
+	var currentCoord = vec2<i32>(coord);
     let cellValue = cellFAmount(coord);
-	let cellHeight = roundedCellHeight(coord);
-	let combinedCellValue = cellValue + cellHeight;
+	let cellH = roundedCellHeight(coord);
+	let combinedCellValue = cellValue + cellH;
 	var futureCellValue = cellValue;
 	
-	var nCoord = vec2<u32>(0, 0);
+	var nCoord = vec2<i32>(0, 0);
 	var nValue : f32 = 0.0;
     var nCombinedValue : f32 = 0.0;
     var nHeight : f32 = 0.0;
@@ -98,16 +172,18 @@ fn getFlowChange(coord: vec2<u32>) -> f32
 	var change : f32 = 0.0;
 	
 	var checkNeighors : bool = false;	
-	var requiredNeighbors : f32 = 0.0;
+	var requiredNeighbors : u32 = 0;
 	var requiredRadius :u32 = 1;
 	
 	var isAnti : bool= cellValue < 0;
 	var nIsAnti : bool = false;
 	
 	var clampToOne : bool = true;
-	var movementDivsor : f32 = 2.0f;
+	var movementDivsor : f32 = 2.0;
 	
 	var minSpreadAmount : f32 = 1.0;
+	var minMoveAmount : f32 = 0.1;
+	var cellMovementMultiplier : f32 = 1.0;
 
     var maxCellValue = uTerrain.maxCellValue;
 	
@@ -115,84 +191,84 @@ fn getFlowChange(coord: vec2<u32>) -> f32
 	if (combinedCellValue < maxCellValue)
 	{
 		//Get this cells highest neighbor
-		highestIndex = highestNeighborIndex(coord.xy);
-		// nCoord = NeighborCoord(coord.xy, highestIndex);
+		highestIndex = highestNeighborIndex(currentCoord);
+		nCoord = neighborCoord(currentCoord, highestIndex);
 		
-		// //If neighbor is in bounds
-		// if (InBounds(nCoord) && (requiredNeighbors <= 0 || DirectNeighorCount(nCoord) >= requiredNeighbors))
-		// {
-		// 	nValue = CellValue(nCoord);
-		// 	nCombinedValue = CombinedCellHeight(nCoord);
-		// 	nIsAnti = nValue < 0;						
+		//If neighbor is in bounds
+		if (inBoundsV2I(nCoord) && ((requiredNeighbors <= 0) || (directNeighorCount(nCoord) >= requiredNeighbors)))
+		{
+			nValue = cellFAmount(vec2<u32>(nCoord));
+			nCombinedValue = roundedCombinedCellHeight(vec2<u32>(nCoord));
+			nIsAnti = nValue < 0;						
 			
-		// 	//If the neigbor has more than the min amount and the combined height of the neighbor cell is higher
-		// 	if ((cellValue != 0 || abs(nValue) > minSpreadAmount) && abs(nValue) > minMoveAmount && nCombinedValue >= combinedCellValue)
-		// 	{
-		// 		//Get the lowest index of the neighbor
-		// 		oppositeIndex = (highestIndex + 4) % 8;
-		// 		lowestIndex = LowestNeighborIndex(nCoord);
+			//If the neigbor has more than the min amount and the combined height of the neighbor cell is higher
+			if (((cellValue != 0) || (abs(nValue) > minSpreadAmount)) && (abs(nValue) > minMoveAmount) && (nCombinedValue >= combinedCellValue))
+			{
+				//Get the lowest index of the neighbor
+				oppositeIndex = (highestIndex + 4) % 8;
+				lowestIndex = lowestNeighborIndex(nCoord);
 				
-		// 		//if the lowestIndex equals the opposite, meaning that the two cells are paired
-		// 		if (lowestIndex == oppositeIndex)
-		// 		{
-		// 			int m = maxCellValue - combinedCellValue;
-		// 			int n = floor((nCombinedValue - combinedCellValue) / movementDivsor * cellMovementMultiplier);
-		// 			n = min(abs(nValue), n);
-		// 			//increase cell by up to half of the difference in amounts
-		// 			change += clamp(n, clampToOne ? 1 : 0, m) * nIsAnti ? -1 : 1;
-		// 			//change++;
+				//if the lowestIndex equals the opposite, meaning that the two cells are paired
+				if (lowestIndex == oppositeIndex)
+				{
+					let m = maxCellValue - combinedCellValue;
+					var n = floor((nCombinedValue - combinedCellValue) / movementDivsor * cellMovementMultiplier);
+					n = min(abs(nValue), n);
+					//increase cell by up to half of the difference in amounts
+					let lower = f32(select(0, 1, clampToOne));
+					let sign  = f32(select(1, -1, nIsAnti));
+					change += clamp(n, lower, m) * sign;
+				}
 
-		// 		}
+			}
 
-		// 	}
-
-		// }
+		}
 
 	}
 
-	// //Should this cell decrease due to flow to a neighbor
-	// if (abs(cellValue) > minMoveAmount && (requiredNeighbors <= 0 || DirectNeighorCount(coord.xy) >= requiredNeighbors))
-	// {
-	// 	//Get this cells lowest neighbor
-	// 	lowestIndex = LowestNeighborIndex(coord.xy);
-	// 	nCoord = NeighborCoord(coord.xy, lowestIndex);
+	//Should this cell decrease due to flow to a neighbor
+	if (abs(cellValue) > minMoveAmount && (requiredNeighbors <= 0 || directNeighorCount(currentCoord) >= requiredNeighbors))
+	{
+		//Get this cells lowest neighbor
+		lowestIndex = lowestNeighborIndex(currentCoord);
+		nCoord = neighborCoord(currentCoord, lowestIndex);
 		
-	// 	//If neighbor is in bounds
-	// 	if (InBounds(nCoord))
-	// 	{
-	// 		nValue = CellValue(nCoord);
-	// 		nCombinedValue = CombinedCellHeight(nCoord);
+		//If neighbor is in bounds
+		if (inBoundsV2I(nCoord))
+		{
+			nValue = cellFAmount(vec2<u32>(nCoord));
+			nCombinedValue = roundedCombinedCellHeight(vec2<u32>(nCoord));
 			
-	// 		//If the neigbor has less than the max amount and the combined height of the neighbor cell is lower
-	// 		if ((nValue != 0 || abs(cellValue) > minSpreadAmount) && nCombinedValue < maxCellValue && nCombinedValue <= combinedCellValue)
-	// 		{
-	// 			//Get the highest index of the neighbor
-	// 			oppositeIndex = (lowestIndex + 4) % 8;
-	// 			highestIndex = HighestNeighborIndex(nCoord);
-	// 			nHeight = CellHeight(nCoord);
+			//If the neigbor has less than the max amount and the combined height of the neighbor cell is lower
+			if ((nValue != 0 || abs(cellValue) > minSpreadAmount) && nCombinedValue < maxCellValue && nCombinedValue <= combinedCellValue)
+			{
+				//Get the highest index of the neighbor
+				oppositeIndex = (lowestIndex + 4) % 8;
+				highestIndex = highestNeighborIndex(nCoord);
+				nHeight = cellHeight(vec2<u32>(nCoord));
 				
-	// 			//if the highestIndex equals the opposite, meaning that the two cells are paired
-	// 			if (highestIndex == oppositeIndex)
-	// 			{
-	// 				//Get the remaining space in the cell
-	// 				int m = maxCellValue - nCombinedValue;
-	// 				//Get half of the difference in the cells
-	// 				int n = floor((combinedCellValue - nCombinedValue) / movementDivsor * cellMovementMultiplier);
-	// 				//If the half is bigger than the value clamp
-	// 				n = min(abs(cellValue), n);
+				//if the highestIndex equals the opposite, meaning that the two cells are paired
+				if (highestIndex == oppositeIndex)
+				{
+					//Get the remaining space in the cell
+					let m = maxCellValue - nCombinedValue;
+					//Get half of the difference in the cells
+					var n = floor((combinedCellValue - nCombinedValue) / movementDivsor * cellMovementMultiplier);
+					//If the half is bigger than the value clamp
+					n = min(abs(cellValue), n);
 					
-	// 				//decrease cell by up to half of the difference in amounts
-	// 				change -= clamp(n, clampToOne ? 1 : 0, m) * isAnti ? -1 : 1;
-	// 				//change--;
-	// 			}
+					//decrease cell by up to half of the difference in amounts
+					let lower = f32(select(0, 1, clampToOne));
+					let sign  = f32(select(1, -1, nIsAnti));
+					change -= clamp(n, lower, m) * sign;
+					//change--;
+				}
 
-	// 		}
+			}
 
-	// 	}
+		}
 
-	// }
+	}
 	
-	// return change;
-
-    return futureCellValue;
+	return change;
 }
