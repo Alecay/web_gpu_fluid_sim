@@ -370,7 +370,7 @@ export default function App() {
     [setInput]
   );
 
-  useEffect(() => webHandleRef.current?.updateInputBuffer?.(input), [input]);
+  // useEffect(() => webHandleRef.current?.updateInputBuffer?.(input), [input]);
 
   return (
     <>
@@ -383,7 +383,6 @@ export default function App() {
           height: "100%",
           backgroundColor: "rgba(1, 1, 1, 1)",
           overflow: "hidden",
-          pointerEvents: "none",
           display: "grid",
           placeItems: "center",
         }}
@@ -399,7 +398,6 @@ export default function App() {
             zIndex: -5,
             display: "grid",
             placeItems: "center",
-            pointerEvents: "none",
             // left: `${canvasPosition.x}px`,
             // top: `${canvasPosition.y}px`,
             transform: `translate3d(${canvasPosition.x}px, ${canvasPosition.y}px, 0)`,

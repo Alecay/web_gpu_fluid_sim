@@ -5,6 +5,7 @@ import HeightDisplay from "./HeightDisplay";
 import MapCoordDisplay from "./MapCoordDisplay";
 import HotkeyModal from "./HotkeyModal";
 import NoiseSettingsForm, { NoiseUISettings } from "../NoiseSettingsForm";
+import ControlsUI from "./ControlsUI";
 
 interface CanvasUIProps {
   settings: NoiseUISettings;
@@ -31,12 +32,14 @@ export default function CanvasUI({
         fontSize: "20px",
         // fontFamily: '"Pixelify Sans", sans-serif',
         // fontFamily: '"Jersey 10", sans-serif',
+        pointerEvents: "none",
         fontFamily: '"Tiny 5", sans-serif',
         fontWeight: 400,
       }}
     >
       <div id="output" />
       <MapCoordDisplay input={input} />
+      <ControlsUI />
       {/* <div
         style={{
           position: "absolute",
