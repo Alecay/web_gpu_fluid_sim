@@ -5,12 +5,13 @@ struct View {
 };
 
 struct Input {
-    mousePos         : vec2<u32>, // mouse x, y (pixels)
-    mouse0Held     : f32,       // 0 or 1
-    mouse1Held     : f32,       // 0 or 1
-    mouseRadius   : f32,
-    _pad0     : vec3<f32>,
-};
+  mousePos     : vec2<u32>, // 0..1: u32 pixels
+  mouse0Held   : f32,       // 2: 0/1
+  mouse1Held   : f32,       // 3: 0/1
+  mouseRadius  : f32,       // 4
+  // (12 bytes implicit padding here to align next member to 16B)
+  visibleRect  : vec4<u32>, //  (x0, y0, x1, y1) in canvas coords
+};                          // total size = 48 bytes
 
 struct CellData {
     height       : f32,       // 0..3

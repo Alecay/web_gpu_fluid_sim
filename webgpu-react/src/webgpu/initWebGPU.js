@@ -31,9 +31,9 @@ export async function initWebGPU(
     canvas.__wgpuCleanup(); // stop old RAF, remove listeners
   }
 
-  var updateNormals = false;
-  var updateTerrainTexture = false;
-  var updateShadowTexture = false;
+  var updateNormals = true;
+  var updateTerrainTexture = true;
+  var updateShadowTexture = true;
 
   const device = await getDevice();
   // console.log("Using WebGPU device:", device.__id);
@@ -62,11 +62,6 @@ export async function initWebGPU(
     code: shaderCode,
   });
 
-  // var mousePosition = { x: 0, y: 0 };
-  // var mouse0Held = false;
-  // var mouse1Held = false;
-  // var mouseRadius = 30;
-
   var currentTime = 0;
 
   const viewUniformBuffer = createOrUpdateViewBuffer(device, {
@@ -92,6 +87,7 @@ export async function initWebGPU(
     mouse0Held: input.mouse0Held,
     mouse1Held: input.mouse1Held,
     mouseRadius: input.mouseRadius,
+    visibleRect: input.visibleRect,
   });
 
   const terrainBuffer = createOrUpdateTerrainParamsBuffer(
@@ -127,21 +123,11 @@ export async function initWebGPU(
         mouse0Held: newInput.mouse0Held,
         mouse1Held: newInput.mouse1Held,
         mouseRadius: newInput.mouseRadius,
+        visibleRect: newInput.visibleRect,
       },
       inputUniformBuffer
     );
-
-    // updateNormals = true;
-    // updateShadowTexture = true;
   }
-
-  // window.addEventListener("mousemove", onMouseMove);
-  // window.addEventListener("mouseup", onMouseUp);
-
-  // Canvas mouse down to avoid clicks outside the game bounds
-  // window.addEventListener("contextmenu", preventContext);
-  // window.addEventListener("mousedown", onMouseDown);
-  // window.addEventListener("wheel", onMouseScroll, { passive: false });
 
   // Create output texture buffer
   const outputTextureBuffer = device.createBuffer({
@@ -578,7 +564,8 @@ export async function initWebGPU(
       input.mouseMoved ||
       input.mouse0Held ||
       input.mouse1Held ||
-      input.mouse2Held;
+      input.mouse2Held ||
+      frameIdx % 7 === 0;
 
     await device.pushErrorScope("validation");
     currentTime = tMs * 0.001;
@@ -598,7 +585,15 @@ export async function initWebGPU(
     if (frameIdx === 0 || input.mouse0Held || input.mouse1Held) {
       updateTerrainTexture = true;
       updateNormals = true;
+      updateShadowTexture = true;
     }
+
+    if (input.visibleRectChanged) {
+      updateShadowTexture = true;
+      // console.log("Visible rect changed");
+    }
+
+    updateShadowTexture = true;
 
     // Normal Compute: prev -> next in chosen direction
     if (updateNormals || updateTerrainTexture) {
@@ -641,6 +636,8 @@ export async function initWebGPU(
       shadowRenderPass.dispatchWorkgroups(dispatchX, dispatchY, 1);
       shadowRenderPass.end();
       // console.log("Updated Shadow Texture");
+
+      updateInput({ ...input, visibleRectChanged: false });
     }
 
     // query
@@ -707,7 +704,7 @@ export async function initWebGPU(
     updateShadowTexture = false;
     updateNormals = false;
 
-    updateInput({ ...input, mouseMoved: false });
+    if (input.mouseMoved) updateInput({ ...input, mouseMoved: false });
 
     frameIdx++;
 

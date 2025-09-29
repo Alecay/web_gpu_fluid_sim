@@ -33,16 +33,22 @@ fn step(@builtin(global_invocation_id) gid : vec3<u32>) {
     // out.height = clamp(out.height, 0.0, uTerrain.maxCellValue);
 
     // Fluid editing
+    let fStrength = 3.0;
     if(mouse0Held || mouse1Held)
     {
         //let inside = inside_circle(vec2<u32>(x,y), uInput.mousePos, uInput.mouseRadius);
         if (mouse0Held && inside) {
-            out.fAmount = out.fAmount + 1.0 * radiusT;
+            out.fAmount = out.fAmount + fStrength * radiusT;
         }
         else if (mouse1Held && inside) {
-            out.fAmount = out.fAmount - 1.0 * radiusT;
+            out.fAmount = out.fAmount - fStrength * radiusT;
         }
     }
+
+    out.fAmount -= clamp(out.fAmount * 0.01, 0.0, 0.5);
+
+    if(out.fAmount < 0.1) { out.fAmount = 0.0;}
+
     // Clamp
     let cellmax = uTerrain.maxCellValue * 2 - out.height;
     out.fAmount = clamp(out.fAmount, 0.0, cellmax);

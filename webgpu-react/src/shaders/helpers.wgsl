@@ -33,6 +33,23 @@ fn clampCoord(coord: vec2<u32>) -> vec2<u32> {
   return vec2<u32>(u32(cx), u32(cy));
 }
 
+// visibleRect = (x0, y0, x1, y1) in canvas coords; x1,y1 are EXCLUSIVE
+fn isVisible(coord: vec2<u32>, expand: i32) -> bool {
+  let w: u32 = uView.size.x;
+  let h: u32 = uView.size.y;
+
+  let vr = uInput.visibleRect; // vec4<u32> (x0,y0,x1,y1)
+
+  // expand/shrink in signed space, then clamp to [0, size]
+  let x0: u32 = u32(clamp(i32(vr.x) - expand, 0, i32(w)));
+  let y0: u32 = u32(clamp(i32(vr.y) - expand, 0, i32(h)));
+  let x1: u32 = u32(clamp(i32(vr.z) + expand, 0, i32(w)));
+  let y1: u32 = u32(clamp(i32(vr.w) + expand, 0, i32(h)));
+
+  return (coord.x >= x0 && coord.x < x1) &&
+         (coord.y >= y0 && coord.y < y1);
+}
+
 fn roundToColorSteps(value: f32) -> f32
 {
   if(uTerrain.colorSteps <= 0u) { return value; }

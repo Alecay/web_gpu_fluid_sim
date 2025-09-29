@@ -7,43 +7,40 @@ export type VisibleRect = {
   height: number;
 };
 
-/** Visible area in *canvas drawing-buffer* coords. */
+/** Compute visible area in *canvas drawing-buffer* coords. */
 export function computeVisibleAreaInCanvas(
-  canvas: HTMLCanvasElement,
-  viewportW = window.innerWidth,
-  viewportH = window.innerHeight
+  canvas: HTMLCanvasElement
 ): VisibleRect | null {
-  const rect = canvas.getBoundingClientRect(); // CSS pixels on screen
+  const rect = canvas.getBoundingClientRect(); // CSS px (may be fractional)
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
 
-  // Intersection with viewport (still in CSS pixels)
-  const vLeft = Math.max(0, Math.min(rect.right, viewportW));
-  const vRight = Math.min(viewportW, Math.max(rect.left, 0));
-  const vTop = Math.max(0, Math.min(rect.bottom, viewportH));
-  const vBottom = Math.min(viewportH, Math.max(rect.top, 0));
+  // Fast reject
+  if (rect.right <= 0 || rect.left >= vw || rect.bottom <= 0 || rect.top >= vh)
+    return null;
 
-  // Note: `vRight` should be the max; swap if needed (could be off-screen)
-  const viewX0 = Math.max(0, Math.min(vLeft, vRight));
-  const viewX1 = Math.max(0, Math.max(vLeft, vRight));
-  const viewY0 = Math.max(0, Math.min(vTop, vBottom));
-  const viewY1 = Math.max(0, Math.max(vTop, vBottom));
+  // Intersection in CSS px
+  const cssX0 = Math.max(rect.left, 0);
+  const cssY0 = Math.max(rect.top, 0);
+  const cssX1 = Math.min(rect.right, vw);
+  const cssY1 = Math.min(rect.bottom, vh);
 
-  if (viewX1 <= viewX0 || viewY1 <= viewY0) return null; // not visible
-
-  // CSS→canvas scale
+  // CSS→canvas scale (prefer exact buffer-to-CSS ratio)
   const sx = rect.width ? canvas.width / rect.width : 1;
   const sy = rect.height ? canvas.height / rect.height : 1;
 
-  // Map viewport intersection to canvas-local coords
-  const x0 = (viewX0 - rect.left) * sx;
-  const y0 = (viewY0 - rect.top) * sy;
-  const x1 = (viewX1 - rect.left) * sx;
-  const y1 = (viewY1 - rect.top) * sy;
+  // Map to canvas-local (float)
+  const fx0 = (cssX0 - rect.left) * sx;
+  const fy0 = (cssY0 - rect.top) * sy;
+  const fx1 = (cssX1 - rect.left) * sx;
+  const fy1 = (cssY1 - rect.top) * sy;
 
-  // Integerize for discrete pixels (inclusive/exclusive bounds)
-  const ix0 = Math.max(0, Math.floor(x0));
-  const iy0 = Math.max(0, Math.floor(y0));
-  const ix1 = Math.min(canvas.width, Math.ceil(x1));
-  const iy1 = Math.min(canvas.height, Math.ceil(y1));
+  // Clamp + integerize with a tiny epsilon to avoid +/-1 flicker
+  const EPS = 1e-6;
+  const ix0 = Math.max(0, Math.floor(fx0 + EPS));
+  const iy0 = Math.max(0, Math.floor(fy0 + EPS));
+  const ix1 = Math.min(canvas.width, Math.ceil(fx1 - EPS));
+  const iy1 = Math.min(canvas.height, Math.ceil(fy1 - EPS));
 
   if (ix1 <= ix0 || iy1 <= iy0) return null;
 

@@ -36,18 +36,6 @@ const isEditableTarget = (t: EventTarget | null) => {
 const clamp = (v: number, min: number, max: number) =>
   Math.min(max, Math.max(min, v));
 
-const computeLimitsCentered = (
-  vw: number,
-  vh: number,
-  cw: number,
-  ch: number
-) => ({
-  xMin: -Math.max(0, (cw - vw) / 2),
-  xMax: Math.max(0, (cw - vw) / 2),
-  yMin: -Math.max(0, (ch - vh) / 2),
-  yMax: Math.max(0, (ch - vh) / 2),
-});
-
 const computeLimitsTopLeft = (
   vw: number,
   vh: number,
@@ -213,6 +201,7 @@ export default function App() {
       }));
 
       requestAnimationFrame(() => updateMouseFromClient());
+      updateVisibleRect();
     };
 
     const moveCanvas = (dt: number) => {
@@ -242,6 +231,7 @@ export default function App() {
         }));
 
         requestAnimationFrame(() => updateMouseFromClient());
+        updateVisibleRect();
       }
     };
 
@@ -309,12 +299,11 @@ export default function App() {
       e.preventDefault();
     }
 
-    const tick = (t: number) => {
+    const tick = async (t: number) => {
       const dt = (t - last) / 1000;
       last = t;
 
       moveCanvas(dt);
-
       rafId = requestAnimationFrame(tick);
     };
 
@@ -331,6 +320,8 @@ export default function App() {
 
     rafId = requestAnimationFrame(tick);
 
+    updateVisibleRect();
+
     return () => {
       cancelAnimationFrame(rafId);
       window.removeEventListener("mousemove", onMouseMove);
@@ -345,19 +336,41 @@ export default function App() {
     };
   }, [canvasSize.width, canvasSize.height, canvasScale]);
 
-  const visibleRect = useMemo(() => {
-    const el = canvasRef.current;
-    return el ? computeVisibleAreaInCanvas(el) : null;
-  }, [canvasPosition.x, canvasPosition.y, canvasSize.width, canvasSize.height]);
+  const lastVisRef = useRef<VisibleRect | null>(null);
 
-  // side-effects or logging when it changes
-  useEffect(() => {
-    if (!visibleRect) return;
-    // webHandleRef.current?.updateVisibleArea?.(visibleRect);
-    const newInput: Input = { ...input, visibleRect };
-    setInput(newInput);
-    webHandleRef.current?.updateInputBuffer?.(newInput);
-  }, [visibleRect]);
+  /** Measure visible rect (in canvas coords) and push into input + GPU. */
+  const updateVisibleRect = useCallback(
+    (defer: boolean = true) => {
+      const run = () => {
+        const el = canvasRef.current;
+        if (!el) return;
+
+        const vr = computeVisibleAreaInCanvas(el); // your function from earlier
+        if (!vr) return;
+
+        // Skip if unchanged
+        const same =
+          lastVisRef.current &&
+          vr.x0 === lastVisRef.current.x0 &&
+          vr.y0 === lastVisRef.current.y0 &&
+          vr.x1 === lastVisRef.current.x1 &&
+          vr.y1 === lastVisRef.current.y1;
+
+        if (same) return;
+        lastVisRef.current = vr;
+        setInput((prev) => {
+          const next = { ...prev, visibleRect: vr, visibleRectChanged: true };
+          webHandleRef.current?.updateInputBuffer?.(next);
+          return next;
+        });
+      };
+
+      defer ? requestAnimationFrame(run) : run();
+    },
+    [setInput]
+  );
+
+  useEffect(() => webHandleRef.current?.updateInputBuffer?.(input), [input]);
 
   return (
     <>
@@ -386,6 +399,7 @@ export default function App() {
             zIndex: -5,
             display: "grid",
             placeItems: "center",
+            pointerEvents: "none",
             // left: `${canvasPosition.x}px`,
             // top: `${canvasPosition.y}px`,
             transform: `translate3d(${canvasPosition.x}px, ${canvasPosition.y}px, 0)`,
