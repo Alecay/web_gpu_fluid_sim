@@ -1,5 +1,6 @@
 import structsWGSL from "../shaders/structs.wgsl?raw";
 import helpersWGSL from "../shaders/helpers.wgsl?raw";
+import flowHelpersWGSL from "../shaders/flow_helpers.wgsl?raw";
 import vertexWGSL from "../shaders/vertex.wgsl?raw";
 import fragmentWGSL from "../shaders/fragment.wgsl?raw";
 // import realtimeFragmentWGSL from "../shaders/realtime_frag.wgsl?raw";
@@ -14,6 +15,7 @@ export function getShaderText() {
   let shaderCode = shaderOutlineWGSL;
   shaderCode = shaderCode.replace("//{Structs}", structsWGSL);
   shaderCode = shaderCode.replace("//{Helpers}", helpersWGSL);
+  shaderCode = shaderCode.replace("//{Flow Helpers}", flowHelpersWGSL);
   shaderCode = shaderCode.replace("//{Vertex}", vertexWGSL);
   shaderCode = shaderCode.replace("//{Fragment}", fragmentWGSL);
   // shaderCode = shaderCode.replace("//{Fragment}", realtimeFragmentWGSL);

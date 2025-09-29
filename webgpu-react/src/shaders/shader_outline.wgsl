@@ -2,6 +2,8 @@
 
 //{Helpers}
 
+//{Flow Helpers}
+
 @group(0) @binding(0) var<uniform> uView : View;
 @group(0) @binding(1) var<uniform> uInput : Input;
 @group(0) @binding(2) var<uniform> uTerrain : TerrainParams;

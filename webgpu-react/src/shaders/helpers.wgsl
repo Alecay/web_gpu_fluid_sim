@@ -77,6 +77,10 @@ fn roundedCellFAmount(coord: vec2<u32>) -> f32 {
   return roundToColorSteps(cellFAmount(coord));
 }
 
+fn roundedCombinedCellHeight(coord: vec2<u32>) -> f32 {
+  return roundToColorSteps(cellHeight(coord)) + cellFAmount(coord);
+}
+
 fn colorLerp(a: vec4f, b: vec4f, t: f32) -> vec4f 
 {
   return mix(a, b, clamp(t, 0.0, 1.0));
