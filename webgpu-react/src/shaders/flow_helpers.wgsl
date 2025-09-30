@@ -178,14 +178,14 @@ fn getFlowChange(coord: vec2<u32>) -> f32
 	var isAnti : bool= cellValue < 0;
 	var nIsAnti : bool = false;
 	
-	var clampToOne : bool = true;
+	var clampToOne : bool = false;
 	var movementDivsor : f32 = 2.0;
 	
 	var minSpreadAmount : f32 = 1.0;
 	var minMoveAmount : f32 = 0.1;
 	var cellMovementMultiplier : f32 = 1.0;
 
-    var maxCellValue = uTerrain.maxCellValue;
+    var maxCellValue = uTerrain.maxCellValue * 2;
 	
 	//Should this cell increase due to flow from a neighbor
 	if (combinedCellValue < maxCellValue)
@@ -212,7 +212,7 @@ fn getFlowChange(coord: vec2<u32>) -> f32
 				if (lowestIndex == oppositeIndex)
 				{
 					let m = maxCellValue - combinedCellValue;
-					var n = floor((nCombinedValue - combinedCellValue) / movementDivsor * cellMovementMultiplier);
+					var n = ((nCombinedValue - combinedCellValue) / movementDivsor * cellMovementMultiplier);
 					n = min(abs(nValue), n);
 					//increase cell by up to half of the difference in amounts
 					let lower = f32(select(0, 1, clampToOne));
@@ -253,7 +253,7 @@ fn getFlowChange(coord: vec2<u32>) -> f32
 					//Get the remaining space in the cell
 					let m = maxCellValue - nCombinedValue;
 					//Get half of the difference in the cells
-					var n = floor((combinedCellValue - nCombinedValue) / movementDivsor * cellMovementMultiplier);
+					var n = ((combinedCellValue - nCombinedValue) / movementDivsor * cellMovementMultiplier);
 					//If the half is bigger than the value clamp
 					n = min(abs(cellValue), n);
 					

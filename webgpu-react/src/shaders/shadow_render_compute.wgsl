@@ -56,7 +56,7 @@ fn shadow_render(@builtin(global_invocation_id) gid : vec3<u32>) {
     if(waterHeight > 0.0)
     {
         var waterOutline = getFluidOutlineColor(coord, lightDir, shadeColor, highlightColor, castedShadowColor.a < 1e-4);
-        // waterColor = over_rgba(waterColor, waterOutline);
+        waterColor = over_rgba(waterColor, waterOutline);
         finalColor = over_rgba(finalColor, waterColor);
         //castedShadowColor = vec4f(castedShadowColor.rgb, castedShadowColor.a * 0.1);
     }

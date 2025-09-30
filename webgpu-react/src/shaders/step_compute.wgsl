@@ -65,27 +65,21 @@ fn step(@builtin(global_invocation_id) gid : vec3<u32>) {
 
 // Core tile (WG × WG), plus halo for multi-step evolution
 const WG        : u32 = 16u;
-const HALO      : u32 = 4u;                           // supports up to 4 sub-steps
+const HALO      : u32 = 8u;                           // supports up to 4 sub-steps
 const EXTW      : u32 = WG + 2u*HALO;             // shared width
 const EXTH      : u32 = WG + 2u*HALO;             // shared height
+const EXTN      : u32 = EXTW * EXTH;
 const STRIDE    : u32 = EXTW;
 
-var<workgroup> prevTile : array<StepData, EXTW * EXTH>;
-var<workgroup> nextTile : array<f32     , EXTW * EXTH>;
+var<workgroup> prevH : array<f32, EXTN>;  // read-only across substeps
+var<workgroup> prevF : array<f32, EXTN>;  // read in, updated each substep
+var<workgroup> nextF : array<f32, EXTN>;  // scratch per substep
 
-fn sidx(x:u32, y:u32) -> u32 { return y * STRIDE + x; }
+fn sidx(x:u32, y:u32) -> u32 { return y * EXTW + x; }
 
 // Row-major index into a 1D buffer using an explicit width.
 fn gidx(x: u32, y: u32, width: u32) -> u32 {
   return y * width + x;
-}
-
-// Your function that computes the *next* value from the *previous* state.
-// It should look up neighbors in prevTile using (sx, sy) coordinates in shared space.
-fn getFurtureAmount(sx:u32, sy:u32) -> f32 {
-  // Example (replace with your real logic that reads prevTile[...]):
-  let i = sidx(sx, sy);
-  return prevTile[i].fAmount + 1.0; // placeholder
 }
 
 // ---- Shared/tile bounds helpers ----
@@ -101,12 +95,15 @@ fn sNeighborCoord(scoord: vec2<i32>, index: u32) -> vec2<i32> {
   return scoord + OFFSETS[k];
 }
 
+fn sH(sx:u32, sy:u32) -> f32 { return prevH[sidx(sx,sy)]; }
+fn sF(sx:u32, sy:u32) -> f32 { return prevF[sidx(sx,sy)]; }
+
 // ---- prevTile readers (shared coords) ----
 fn sCellHeight(sx:u32, sy:u32) -> f32 {
-  return prevTile[sidx(sx, sy)].height;
+  return sH(sx, sy);
 }
 fn sCellFAmount(sx:u32, sy:u32) -> f32 {
-  return prevTile[sidx(sx, sy)].fAmount;
+  return sF(sx, sy);
 }
 
 // ---- rounding / coloring based on uniforms ----
@@ -266,35 +263,54 @@ fn sGetFlowChange(sx:u32, sy:u32, gx:u32, gy:u32) -> f32 {
   return change;
 }
 
-// ---- future value from prevTile (shared coords) ----
-fn sGetFutureCellFAmount(sx:u32, sy:u32, gx:u32, gy:u32) -> f32 {
-  let cellVal = sCellFAmount(sx, sy);
-  let cellH   = sCellHeight(sx, sy);
-  var future  = cellVal;
+fn sGetFutureF(sx:u32, sy:u32, gx:u32, gy:u32) -> f32 {
+    let f = sF(sx, sy);
+    let h = sH(sx, sy);
+    var out = f;
+    out += sGetFlowChange(sx, sy, gx, gy);
 
-  let maxCellValue : f32 = uTerrain.maxCellValue * 2.0;
+    let mouse0Held = uInput.mouse0Held > 0.5;
+    let mouse1Held = uInput.mouse1Held > 0.5;
 
-  future += sGetFlowChange(sx, sy, gx, gy);
-  // future += interactions...
-  // future += emissions...
+    let dSqrd = distanceSqrd(vec2<u32>(gx,gy), uInput.mousePos);
+    let radiusSqrd = uInput.mouseRadius * uInput.mouseRadius;
+    var radiusT = clamp((radiusSqrd - dSqrd) / radiusSqrd, 0.0, 1.0);
+    radiusT = radiusT * radiusT;
+    let inside = dSqrd <= radiusSqrd;
 
-  future = clamp(future, -maxCellValue + cellH, maxCellValue - cellH);
-  return future;
+
+
+    // Fluid editing
+    let fStrength = 3.0;
+    if(mouse0Held || mouse1Held)
+    {
+        //let inside = inside_circle(vec2<u32>(x,y), uInput.mousePos, uInput.mouseRadius);
+        if (mouse0Held && inside) {
+            out = out + fStrength * radiusT;
+        }
+        else if (mouse1Held && inside) {
+            out = out - fStrength * radiusT;
+        }
+    }
+
+    // Apply evaporation
+    if(out < 2.0 && sDirectNeighborCount(vec2<i32>(vec2(gx, gy))) < 8)
+    {
+        out -= clamp(out * 0.001, 0.0, 0.001);
+        if(out < 0.1 && out > 0.0) { out = 0.0;}
+    }
+
+
+    let maxV = uTerrain.maxCellValue * 2.0;
+    return clamp(out, -maxV + h, maxV - h);
 }
 
 
-// --- Helper: cooperative load of prevTile (no wrap, skip OOB) ---
-fn loadPrevTileNoWrap(
-  lid : vec3<u32>,         // local_invocation_id
-  wid : vec3<u32>,         // workgroup_id
-  W   : u32,               // grid width
-  H   : u32                // grid height
-) {
-  // Top-left of this workgroup’s *core* tile in global coords
+// --- Helper: cooperative load of prevTile (no wrap; clamp-to-edge halo) ---
+fn loadPrevTileNoWrap(lid: vec3<u32>, wid: vec3<u32>, W:u32, H:u32) {
   let gx0 = wid.x * WG;
   let gy0 = wid.y * WG;
 
-  // Cover the entire extended (WG + 2*HALO) square cooperatively
   var sy = lid.y;
   loop {
     if (sy >= EXTH) { break; }
@@ -302,127 +318,86 @@ fn loadPrevTileNoWrap(
     loop {
       if (sx >= EXTW) { break; }
 
-      // Global coords for this shared cell, offset by -HALO for the border
-      let gx = i32(gx0) + i32(sx) - i32(HALO);
-      let gy = i32(gy0) + i32(sy) - i32(HALO);
+      let gx_i = i32(gx0) + i32(sx) - i32(HALO);
+      let gy_i = i32(gy0) + i32(sy) - i32(HALO);
+      let cx   = u32(clamp(gx_i, 0, i32(W) - 1));
+      let cy   = u32(clamp(gy_i, 0, i32(H) - 1));
 
-      // Only load if in-bounds; else leave uninitialized
-      if (gx >= 0 && gy >= 0 && u32(gx) < W && u32(gy) < H) {
-        let cur = currentCells[gidx(u32(gx), u32(gy), W)];
-        prevTile[sidx(sx, sy)].height = cur.height;
-        prevTile[sidx(sx, sy)].fAmount = cur.fAmount;
-      }
+      let gi = gidx(cx, cy, W);
+      let si = sidx(sx, sy);
+      let c  = currentCells[gi];
 
-      sx += WG; // stride by workgroup size to cover the row
+      prevH[si] = c.height;
+      prevF[si] = c.fAmount;
+
+      sx += WG;
     }
-    sy += WG;   // stride by workgroup size to cover all rows
+    sy += WG;
   }
-
-  // Ensure the entire shared tile is populated before anyone uses it
   workgroupBarrier();
 }
 
-// Assumes: const WG, HALO_MAX, EXT_W, EXT_H, STRIDE
-//          var<workgroup> prevTile, nextTile
-//          fn sidx(x,y)->u32
-//          fn sGetFutureCellFAmount(sx,sy,gx,gy)->f32
+// Evolve up to `steps` sub-steps entirely in shared memory.
+// Fixed indexing: sx=HALO+lid.x, sy=HALO+lid.y (no sliding).
+fn evolveNSteps(steps:u32, lid:vec3<u32>, wid:vec3<u32>) {
+  let N  : u32 = min(steps, HALO);
 
-fn evolveNSteps(steps: u32, lid: vec3<u32>, wid: vec3<u32>) {
-  // Clamp to supported halo
-  let N = min(steps, HALO);
-
-  // Workgroup's core tile top-left in GLOBAL coords
+  // Global origin (if your helpers need gx,gy for random indexing etc.)
   let gx0 = wid.x * WG;
   let gy0 = wid.y * WG;
 
-  var s: u32 = 0u;
+  // Fixed shared coords for this thread
+  let sx_fixed : u32 = HALO + lid.x;
+  let sy_fixed : u32 = HALO + lid.y;
+
+  var s:u32 = 0u;
   loop {
     if (s >= N) { break; }
 
-    // Interior offset for this substep (shrink by 1 each step)
-    let off = HALO - s;
-
-    // Shared coords inside current valid interior
-    let sx = off + lid.x;
-    let sy = off + lid.y;
-
-    // The GLOBAL coords corresponding to (sx, sy)
-    // In this layout, global = origin + (sx - off, sy - off) = origin + lid.xy
     let gx = gx0 + lid.x;
     let gy = gy0 + lid.y;
 
-    // Do work only where we have the full 3×3 neighborhood in shared
-    if (sx > 0u && sy > 0u &&
-        sx + 1u < (EXTW - off) &&
-        sy + 1u < (EXTH - off)) {
+    let i = sidx(sx_fixed, sy_fixed);
+    nextF[i] = sGetFutureF(sx_fixed, sy_fixed, gx, gy);
 
-      let v = sGetFutureCellFAmount(sx, sy, gx, gy);   // reads from prevTile
-      nextTile[sidx(sx, sy)] = v;              // writes next
-    }
+    workgroupBarrier(); // make nextF visible
 
-    workgroupBarrier(); // ensure nextTile writes are visible
+    // Copy results back in-place (no sliding): only where we computed
+    prevF[i] = nextF[i];
 
-    // Copy the WG×WG core of this iteration back to prevTile
-    var cy = lid.y;
-    loop {
-      if (cy >= WG) { break; }
-      var cx = lid.x;
-      loop {
-        if (cx >= WG) { break; }
-        let x = off + cx;
-        let y = off + cy;
-        let i = sidx(x, y);
-        prevTile[i].fAmount = nextTile[i];
-        cx = cx + WG;
-      }
-      cy = cy + WG;
-    }
-
-    workgroupBarrier(); // prevTile now holds the just-computed state
-    s = s + 1u;
+    workgroupBarrier(); // prevF now holds the state for next sub-step
+    s += 1u;
   }
 }
 
-// ---- Constants & helpers assumed ----
-// const WG, HALO_MAX, EXTW, STRIDE
-// fn sidx(x,y) -> u32
-// fn gidx(x,y,w) -> u32
-// var<workgroup> prevTile : array<CellData, EXTW * EXTH>;
-// @group(0) @binding(1) var<storage, read_write> nextCells : array<CellData>;
 
-// ---------- Write-back helper ----------
-fn writeBackToNext(
-  steps : u32,
-  lid   : vec3<u32>,  // local thread id
-  wid   : vec3<u32>,  // workgroup id
-  W     : u32,        // grid width
-  H     : u32         // grid height
-) {
-  // Clamp steps to our compile-time halo capacity
-  let N   : u32 = min(steps, HALO);
-  let off : u32 = HALO - N;
 
-  // This workgroup’s core-tile origin in global coords
+// Writes only the final interior of size (WG - 2*N) × (WG - 2*N)
+fn writeBackToNext(steps:u32, lid:vec3<u32>, wid:vec3<u32>, W:u32, H:u32) {
+  let N : u32 = min(steps, HALO);
+
   let gx0 = wid.x * WG;
   let gy0 = wid.y * WG;
 
-  // Shared coords of the final valid interior cell for this thread
-  let sx : u32 = off + lid.x;
-  let sy : u32 = off + lid.y;
+  let sx  = HALO + lid.x;   // fixed, no sliding
+  let sy  = HALO + lid.y;
 
-  // Global coords this thread owns
-  let outX : u32 = gx0 + lid.x;
-  let outY : u32 = gy0 + lid.y;
+  let outX = gx0 + lid.x;
+  let outY = gy0 + lid.y;
 
-  if (outX < W && outY < H) {
+  // Final interior: N cells away from each edge; no ±1 neighbor margin needed for write-back
+  if (outX < W && outY < H ) {
+
     let si = sidx(sx, sy);
     let gi = gidx(outX, outY, W);
-    // prevTile holds final state after evolveNSteps (because we copied back each substep)
-    nextCells[gi] = currentCells[gi];
-    nextCells[gi].height  = prevTile[si].height;
-    nextCells[gi].fAmount = prevTile[si].fAmount;
+
+    var out = currentCells[gi];                 // preserve other fields
+    out.height  = clamp(prevH[si], 0.0, uTerrain.maxCellValue);
+    out.fAmount = prevF[si];
+    nextCells[gi] = out;
   }
 }
+
 
 @compute @workgroup_size(WG, WG, 1)
 fn stepN(
@@ -431,6 +406,11 @@ fn stepN(
 ) {
     let W = uView.size.x;   // or your params.width
     let H = uView.size.y;   // or your params.height
+
+    let gx = wid.x * WG;
+    let gy = wid.y * WG;
+
+    if(gx >= W || gy >= H || gx < 0 || gy < 0) { return; }
 
     let steps : u32 = 4u;
 

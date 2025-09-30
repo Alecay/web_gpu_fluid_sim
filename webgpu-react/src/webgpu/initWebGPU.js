@@ -270,7 +270,7 @@ export async function initWebGPU(
 
     // Step Compute: prev -> next in chosen direction
     {
-      const subSteps = 1;
+      const subSteps = 32;
       const stepPass = encoder.beginComputePass({ label: "Step Compute Pass" });
       stepPass.setPipeline(bindings.piplines.stepComputePipeline);
       for (let i = 0; i < subSteps; i++) {
