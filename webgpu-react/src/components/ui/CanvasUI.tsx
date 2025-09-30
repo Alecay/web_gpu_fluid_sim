@@ -6,11 +6,14 @@ import MapCoordDisplay from "./MapCoordDisplay";
 import HotkeyModal from "./HotkeyModal";
 import NoiseSettingsForm, { NoiseUISettings } from "../NoiseSettingsForm";
 import ControlsUI from "./ControlsUI";
+import TimeControlGroup, { Speed } from "./TimeControlsGroup";
+import React from "react";
 
 interface CanvasUIProps {
   settings: NoiseUISettings;
   setSettings: React.Dispatch<React.SetStateAction<NoiseUISettings>>;
   input: Input;
+  setInput: (input: Input) => void;
   cursorQuery: CursorQuery;
 }
 
@@ -18,8 +21,12 @@ export default function CanvasUI({
   settings,
   setSettings,
   input,
+  setInput,
   cursorQuery,
 }: CanvasUIProps) {
+  const [paused, setPaused] = React.useState(false);
+  const [speed, setSpeed] = React.useState<Speed>(1);
+
   return (
     <div
       style={{
@@ -40,6 +47,19 @@ export default function CanvasUI({
       <div id="output" />
       <MapCoordDisplay input={input} />
       <ControlsUI />
+      <TimeControlGroup
+        speed={speed}
+        paused={paused}
+        onChange={({ paused, speed }) => {
+          setPaused(paused);
+          setSpeed(speed);
+          setInput({
+            ...input,
+            simulationSubSteps: paused ? 0 : Math.ceil(4 * speed),
+          });
+          console.log("Set simulation sub steps to: ", Math.ceil(4 * speed));
+        }}
+      />
       {/* <div
         style={{
           position: "absolute",

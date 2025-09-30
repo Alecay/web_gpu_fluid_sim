@@ -10,8 +10,16 @@ export async function getDevice(): Promise<GPUDevice> {
   if (window.__wgpuDevice) return window.__wgpuDevice!;
 
   const adapter =
-    window.__wgpuAdapter ?? (await navigator.gpu?.requestAdapter());
+    window.__wgpuAdapter ??
+    (await navigator.gpu?.requestAdapter({
+      powerPreference: "high-performance",
+    }));
   if (!adapter) throw new Error("WebGPU adapter not available");
+
+  // console.log(adapter.__brand);
+  // console.log(adapter.features);
+  // console.log(adapter.limits);
+
   window.__wgpuAdapter = adapter;
 
   const device = await adapter.requestDevice();

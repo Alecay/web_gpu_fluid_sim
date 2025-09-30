@@ -17,7 +17,7 @@ fn shadow_render(@builtin(global_invocation_id) gid : vec3<u32>) {
     let sunHeight       = uTerrain.maxCellValue * 2.5;
     let center          = vec3<f32>(f32(uView.size.x / 2), sunHeight, f32(uView.size.y / 2));
     // let sunPosition     = vec3<f32>(f32(uInput.mousePos.x), sunHeight, f32(uInput.mousePos.y));
-    let sunPosition     = vec3<f32>(f32(uView.size.x * 3 / 2), sunHeight, center.y);
+    let sunPosition     = vec3<f32>(f32(uView.size.x), sunHeight, center.y);
     let terrainInShadow = inShadow(coord, sunPosition);
     let shadowColor     = vec4<f32>(0.0, 0.0, 0.0, 1.0);          // or your tint
     let highlightColor  = vec4f(1.0, 1.0, 1.0, 0.05);
@@ -52,8 +52,11 @@ fn shadow_render(@builtin(global_invocation_id) gid : vec3<u32>) {
     let waterHeight = cellFAmount(coord);//waterLevel - currentHeight;
     let waterA = clamp(waterHeight / 50.0 * waterAMax, waterAMin, waterAMax);
 
-    var waterColor = vec4(waterRgb, waterA);
-    if(waterHeight > 0.0)
+    let antiWaterRgb = vec3(1.0, 1.0, 1.0);//0.384, 0.651, 0.663
+    let antiWaterA = clamp(waterHeight / -50.0 * waterAMax, waterAMin, waterAMax);
+
+    var waterColor = select(vec4(waterRgb, waterA), vec4(antiWaterRgb, antiWaterA), waterHeight < 0);
+    if(abs(waterHeight) > 0.0)
     {
         var waterOutline = getFluidOutlineColor(coord, lightDir, shadeColor, highlightColor, castedShadowColor.a < 1e-4);
         waterColor = over_rgba(waterColor, waterOutline);

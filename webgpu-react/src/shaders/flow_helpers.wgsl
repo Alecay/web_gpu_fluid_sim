@@ -158,7 +158,7 @@ fn getFlowChange(coord: vec2<u32>) -> f32
 	var currentCoord = vec2<i32>(coord);
     let cellValue = cellFAmount(coord);
 	let cellH = roundedCellHeight(coord);
-	let combinedCellValue = cellValue + cellH;
+	let combinedCellValue = roundedCombinedCellHeight(coord);
 	var futureCellValue = cellValue;
 	
 	var nCoord = vec2<i32>(0, 0);
@@ -175,7 +175,7 @@ fn getFlowChange(coord: vec2<u32>) -> f32
 	var requiredNeighbors : u32 = 0;
 	var requiredRadius :u32 = 1;
 	
-	var isAnti : bool= cellValue < 0;
+	var isAnti : bool = cellValue < 0;
 	var nIsAnti : bool = false;
 	
 	var clampToOne : bool = false;
@@ -259,7 +259,7 @@ fn getFlowChange(coord: vec2<u32>) -> f32
 					
 					//decrease cell by up to half of the difference in amounts
 					let lower = f32(select(0, 1, clampToOne));
-					let sign  = f32(select(1, -1, nIsAnti));
+					let sign  = f32(select(1, -1, isAnti));
 					change -= clamp(n, lower, m) * sign;
 					//change--;
 				}

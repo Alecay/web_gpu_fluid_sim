@@ -33,8 +33,8 @@ fn step(@builtin(global_invocation_id) gid : vec3<u32>) {
     //         out.height = out.height - 1.0;
     //     }
     // }
-    // // Clamp
-    // out.height = clamp(out.height, 0.0, uTerrain.maxCellValue);
+    // Clamp
+    out.height = clamp(out.height, 0.0, uTerrain.maxCellValue);
 
     // Fluid editing
     let fStrength = 3.0;
@@ -49,16 +49,35 @@ fn step(@builtin(global_invocation_id) gid : vec3<u32>) {
         }
     }
 
-    // Apply evaporation
-    if(out.fAmount < 2.0 && directNeighorCount(vec2<i32>(coord)) < 8)
+    let simPerSec = 60.0;
+    let ePerSec = 3.0;
+
+    var eD = distanceSqrd(vec2<u32>(x, y), vec2<u32>(270, 350));
+    if(eD < 5)
     {
-        out.fAmount -= clamp(out.fAmount * 0.001, 0.0, 0.001);
-        if(out.fAmount < 0.1 && out.fAmount > 0.0) { out.fAmount = 0.0;}
+      out.fAmount += ePerSec;
+    }
+
+    eD = distanceSqrd(vec2<u32>(x, y), vec2<u32>(720, 120));
+    if(eD < 5)
+    {
+      out.fAmount -= ePerSec;
+    }
+
+
+    // Apply evaporation
+    let ns = directNeighorCount(vec2<i32>(coord));
+    let aAmount = abs(out.fAmount);
+    if((ns <= 3 && aAmount < 10.0) || (aAmount <= 2.0 && ns < 8))
+    {
+      let evapAmount = 0.01;
+      out.fAmount -= clamp(out.fAmount * evapAmount, -evapAmount, evapAmount);
+      if (abs(out.fAmount) < 0.1) { out.fAmount = 0.0;}
     }
 
     // Clamp
-    let cellmax = uTerrain.maxCellValue * 2 - out.height;
-    out.fAmount = clamp(out.fAmount, 0.0, cellmax);
+    let cellmax : f32 = uTerrain.maxCellValue * 2 - out.height;
+    out.fAmount = clamp(out.fAmount, -cellmax, cellmax);
 
     nextCells[i] = out;
 }

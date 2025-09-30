@@ -65,6 +65,7 @@ export async function initWebGPU(
 
   var currentTime = 0;
   var frameIdx = 0;
+  var simIndex = 0;
 
   const viewUniformBuffer = createOrUpdateViewBuffer(device, {
     width: noiseSettings.width,
@@ -80,7 +81,7 @@ export async function initWebGPU(
         width: noiseSettings.width,
         height: noiseSettings.height,
         time: currentTime,
-        simIndex: frameIdx,
+        simIndex: simIndex,
       },
       viewUniformBuffer
     );
@@ -270,10 +271,9 @@ export async function initWebGPU(
 
     // Step Compute: prev -> next in chosen direction
     {
-      const subSteps = 32;
       const stepPass = encoder.beginComputePass({ label: "Step Compute Pass" });
       stepPass.setPipeline(bindings.piplines.stepComputePipeline);
-      for (let i = 0; i < subSteps; i++) {
+      for (let i = 0; i < input.simulationSubSteps; i++) {
         stepPass.setBindGroup(
           0,
           aToB
@@ -282,7 +282,11 @@ export async function initWebGPU(
         );
         stepPass.dispatchWorkgroups(dispatchX, dispatchY, 1);
         aToB = !aToB;
+        simIndex++;
+        updateViewBuffer();
       }
+
+      // console.log("SimIndex: ", simIndex);
 
       stepPass.end();
     }

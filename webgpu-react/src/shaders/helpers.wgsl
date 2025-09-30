@@ -88,7 +88,42 @@ fn roundedCellFAmount(coord: vec2<u32>) -> f32 {
 }
 
 fn roundedCombinedCellHeight(coord: vec2<u32>) -> f32 {
-  return roundToColorSteps(cellHeight(coord)) + cellFAmount(coord);
+  return roundToColorSteps(cellHeight(coord)) + abs(cellFAmount(coord));
+}
+
+fn fHeight(coord: vec2<u32>) -> f32 {
+  return abs(roundedCellFAmount(coord)) + roundedCellHeight(coord);
+}
+
+fn avgFHeight(coord: vec2<u32>) -> f32 {
+  let x = coord.x;
+  let y = coord.y;
+
+  let currentHeight = abs(roundedCellFAmount(coord)) + roundedCellHeight(coord);
+
+  if(!(currentHeight < 0 || currentHeight > 0)) { return 0.0; }
+
+  // get surrounding heights
+  let nVal0 = abs(roundedCellFAmount(vec2<u32>(u32(i32(x) + 0), u32(i32(y) + 1)))) + roundedCellHeight(vec2<u32>(u32(i32(x) + 0), u32(i32(y) + 1)));
+  let nVal1 = abs(roundedCellFAmount(vec2<u32>(u32(i32(x) + 1), u32(i32(y) + 1)))) + roundedCellHeight(vec2<u32>(u32(i32(x) + 0), u32(i32(y) + 1)));
+  let nVal2 = abs(roundedCellFAmount(vec2<u32>(u32(i32(x) + 1), u32(i32(y) + 0)))) + roundedCellHeight(vec2<u32>(u32(i32(x) + 0), u32(i32(y) + 1)));
+  let nVal3 = abs(roundedCellFAmount(vec2<u32>(u32(i32(x) + 1), u32(i32(y) - 1)))) + roundedCellHeight(vec2<u32>(u32(i32(x) + 0), u32(i32(y) + 1)));
+  let nVal4 = abs(roundedCellFAmount(vec2<u32>(u32(i32(x) + 0), u32(i32(y) - 1)))) + roundedCellHeight(vec2<u32>(u32(i32(x) + 0), u32(i32(y) + 1)));
+  let nVal5 = abs(roundedCellFAmount(vec2<u32>(u32(i32(x) - 1), u32(i32(y) - 1)))) + roundedCellHeight(vec2<u32>(u32(i32(x) + 0), u32(i32(y) + 1)));
+  let nVal6 = abs(roundedCellFAmount(vec2<u32>(u32(i32(x) - 1), u32(i32(y) + 0)))) + roundedCellHeight(vec2<u32>(u32(i32(x) + 0), u32(i32(y) + 1)));
+  let nVal7 = abs(roundedCellFAmount(vec2<u32>(u32(i32(x) - 1), u32(i32(y) + 1)))) + roundedCellHeight(vec2<u32>(u32(i32(x) + 0), u32(i32(y) + 1)));
+
+  var count : f32 = 1.0;
+  if(nVal0 > 0 || nVal0 < 0) { count += 1.0; }
+  if(nVal1 > 0 || nVal1 < 0) { count += 1.0; }
+  if(nVal2 > 0 || nVal2 < 0) { count += 1.0; }
+  if(nVal3 > 0 || nVal3 < 0) { count += 1.0; }
+  if(nVal4 > 0 || nVal4 < 0) { count += 1.0; }
+  if(nVal5 > 0 || nVal5 < 0) { count += 1.0; }
+  if(nVal6 > 0 || nVal6 < 0) { count += 1.0; }
+  if(nVal7 > 0 || nVal7 < 0) { count += 1.0; }
+
+  return (nVal0 + nVal1 + nVal2 + nVal3 + nVal4 + nVal5 + nVal6 + nVal7 + currentHeight) / count;
 }
 
 fn colorLerp(a: vec4f, b: vec4f, t: f32) -> vec4f 
@@ -356,7 +391,6 @@ fn getTerrainOutlineColor(coord : vec2<u32>, lightDir: vec3<f32>, shadeColor: ve
   return normalOutline;
 }
 
-
 // Gets a highlight or shade color based on terrain height
 fn getFluidOutlineColor(coord : vec2<u32>, lightDir: vec3<f32>, shadeColor: vec4<f32>, highlightColor: vec4<f32>, inShadow: bool) -> vec4<f32> 
 {
@@ -364,19 +398,45 @@ fn getFluidOutlineColor(coord : vec2<u32>, lightDir: vec3<f32>, shadeColor: vec4
   let x = coord.x;
   let y = coord.y;
 
-  let currentHeight = roundedCellFAmount(coord) + roundedCellHeight(coord);
+  var normalOutline = vec4f(0.0, 0.0, 0.0, 0.0);
+
+  let currentHeight = fHeight(coord);
 
   // get surrounding heights
-  let nVal0 = roundedCellFAmount(vec2<u32>(u32(i32(x) + 0), u32(i32(y) + 1))) + roundedCellHeight(vec2<u32>(u32(i32(x) + 0), u32(i32(y) + 1)));
-  let nVal1 = roundedCellFAmount(vec2<u32>(u32(i32(x) + 1), u32(i32(y) + 1))) + roundedCellHeight(vec2<u32>(u32(i32(x) + 0), u32(i32(y) + 1)));
-  let nVal2 = roundedCellFAmount(vec2<u32>(u32(i32(x) + 1), u32(i32(y) + 0))) + roundedCellHeight(vec2<u32>(u32(i32(x) + 0), u32(i32(y) + 1)));
-  let nVal3 = roundedCellFAmount(vec2<u32>(u32(i32(x) + 1), u32(i32(y) - 1))) + roundedCellHeight(vec2<u32>(u32(i32(x) + 0), u32(i32(y) + 1)));
-  let nVal4 = roundedCellFAmount(vec2<u32>(u32(i32(x) + 0), u32(i32(y) - 1))) + roundedCellHeight(vec2<u32>(u32(i32(x) + 0), u32(i32(y) + 1)));
-  let nVal5 = roundedCellFAmount(vec2<u32>(u32(i32(x) - 1), u32(i32(y) - 1))) + roundedCellHeight(vec2<u32>(u32(i32(x) + 0), u32(i32(y) + 1)));
-  let nVal6 = roundedCellFAmount(vec2<u32>(u32(i32(x) - 1), u32(i32(y) + 0))) + roundedCellHeight(vec2<u32>(u32(i32(x) + 0), u32(i32(y) + 1)));
-  let nVal7 = roundedCellFAmount(vec2<u32>(u32(i32(x) - 1), u32(i32(y) + 1))) + roundedCellHeight(vec2<u32>(u32(i32(x) + 0), u32(i32(y) + 1)));
+  let nVal0 = fHeight(vec2<u32>(u32(i32(x) + 0), u32(i32(y) + 1)));
+  let nVal1 = fHeight(vec2<u32>(u32(i32(x) + 1), u32(i32(y) + 1)));
+  let nVal2 = fHeight(vec2<u32>(u32(i32(x) + 1), u32(i32(y) + 0)));
+  let nVal3 = fHeight(vec2<u32>(u32(i32(x) + 1), u32(i32(y) - 1)));
+  let nVal4 = fHeight(vec2<u32>(u32(i32(x) + 0), u32(i32(y) - 1)));
+  let nVal5 = fHeight(vec2<u32>(u32(i32(x) - 1), u32(i32(y) - 1)));
+  let nVal6 = fHeight(vec2<u32>(u32(i32(x) - 1), u32(i32(y) + 0)));
+  let nVal7 = fHeight(vec2<u32>(u32(i32(x) - 1), u32(i32(y) + 1)));
 
-  var normalOutline = vec4f(0.0, 0.0, 0.0, 0.0);
+  // let nVal0 = avgFHeight(vec2<u32>(u32(i32(x) + 0), u32(i32(y) + 1)));
+  // let nVal1 = avgFHeight(vec2<u32>(u32(i32(x) + 1), u32(i32(y) + 1)));
+  // let nVal2 = avgFHeight(vec2<u32>(u32(i32(x) + 1), u32(i32(y) + 0)));
+  // let nVal3 = avgFHeight(vec2<u32>(u32(i32(x) + 1), u32(i32(y) - 1)));
+  // let nVal4 = avgFHeight(vec2<u32>(u32(i32(x) + 0), u32(i32(y) - 1)));
+  // let nVal5 = avgFHeight(vec2<u32>(u32(i32(x) - 1), u32(i32(y) - 1)));
+  // let nVal6 = avgFHeight(vec2<u32>(u32(i32(x) - 1), u32(i32(y) + 0)));
+  // let nVal7 = avgFHeight(vec2<u32>(u32(i32(x) - 1), u32(i32(y) + 1)));
+
+  // let diffThreshold : f32 = 1.5;
+  // if(
+  //     (abs(nVal0 - currentHeight) < diffThreshold) &&
+  //     (abs(nVal1 - currentHeight) < diffThreshold) &&
+  //     (abs(nVal2 - currentHeight) < diffThreshold) &&
+  //     (abs(nVal3 - currentHeight) < diffThreshold) &&
+  //     (abs(nVal4 - currentHeight) < diffThreshold) &&
+  //     (abs(nVal5 - currentHeight) < diffThreshold) &&
+  //     (abs(nVal6 - currentHeight) < diffThreshold) &&
+  //     (abs(nVal7 - currentHeight) < diffThreshold)
+  //   )
+  //   {
+  //     return normalOutline;
+  //   }
+
+  
 
   // axis feather width in direction space (tweak 0.08..0.2)
   let k = 30.0;

@@ -308,13 +308,15 @@ export default function App() {
     };
 
     window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
+    canvasRef.current?.addEventListener("mouseup", onMouseUp);
     window.addEventListener("contextmenu", preventContext);
-    window.addEventListener("mousedown", onMouseDown);
+    canvasRef.current?.addEventListener("mousedown", onMouseDown);
 
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
-    window.addEventListener("wheel", onMouseScroll, { passive: false });
+    canvasRef.current?.addEventListener("wheel", onMouseScroll, {
+      passive: false,
+    });
     window.addEventListener("resize", resize);
     resize(); // run once at mount
 
@@ -325,13 +327,13 @@ export default function App() {
     return () => {
       cancelAnimationFrame(rafId);
       window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
+      canvasRef.current?.removeEventListener("mouseup", onMouseUp);
       window.removeEventListener("contextmenu", preventContext);
-      window.removeEventListener("mousedown", onMouseDown);
+      canvasRef.current?.removeEventListener("mousedown", onMouseDown);
 
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
-      window.removeEventListener("wheel", onMouseScroll);
+      canvasRef.current?.removeEventListener("wheel", onMouseScroll);
       window.removeEventListener("resize", resize);
     };
   }, [canvasSize.width, canvasSize.height, canvasScale]);
@@ -421,6 +423,10 @@ export default function App() {
           settings={settings}
           setSettings={setSettings}
           input={input}
+          setInput={(i: Input) => {
+            setInput(i);
+            webHandleRef.current?.updateInputBuffer?.(i);
+          }}
           cursorQuery={cursorQuery}
         />
       </div>

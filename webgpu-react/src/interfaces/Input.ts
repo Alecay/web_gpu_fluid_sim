@@ -9,6 +9,7 @@ export interface Input {
   mousePosition: { x: number; y: number };
   visibleRect: VisibleRect;
   visibleRectChanged: boolean;
+  simulationSubSteps: number;
 }
 
 export const DefaultInput: Input = {
@@ -27,4 +28,5 @@ export const DefaultInput: Input = {
     height: 0,
   },
   visibleRectChanged: false,
+  simulationSubSteps: 1,
 };
