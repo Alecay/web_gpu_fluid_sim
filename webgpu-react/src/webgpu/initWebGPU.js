@@ -8,6 +8,7 @@ import {
 } from "./buffers/terrainBuffer";
 import { createOrUpdateViewBuffer } from "./buffers/viewBuffer";
 import { createOrUpdateInputBuffer } from "./buffers/inputBuffer";
+import { getBindings } from "./bindingGroups";
 
 /**
  * @param {HTMLCanvasElement | null} canvas
@@ -216,347 +217,17 @@ export async function initWebGPU(
   }
   device.queue.writeBuffer(randomFlowDirectionsBuffer, 0, randomDirections);
 
-  // ----- Bind group layouts -----
-  // Compute: 0=uniform, 1=prev(read), 2=next(write)
-  const stepComputeBGL = device.createBindGroupLayout({
-    label: "Step Compute BGL",
-    entries: [
-      {
-        binding: 0,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: "uniform" },
-      },
-      {
-        binding: 1,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: "uniform" },
-      },
-      {
-        binding: 2,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: "uniform" },
-      },
-      {
-        binding: 3,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: "storage" },
-      },
-      {
-        binding: 4,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: "storage" },
-      },
-      {
-        binding: 5,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: "read-only-storage" },
-      },
-    ],
-  });
-
-  const normalComputeBGL = device.createBindGroupLayout({
-    label: "Normal Compute BGL",
-    entries: [
-      {
-        binding: 0,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: "uniform" },
-      },
-      {
-        binding: 1,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: "uniform" },
-      },
-      {
-        binding: 2,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: "uniform" },
-      },
-      {
-        binding: 3,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: "storage" },
-      },
-    ],
-  });
-
-  const outputTextureComputeBGL = device.createBindGroupLayout({
-    label: "Output Texture Compute BGL",
-    entries: [
-      {
-        binding: 0,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: "uniform" },
-      },
-      {
-        binding: 1,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: "uniform" },
-      },
-      {
-        binding: 2,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: "uniform" },
-      },
-      {
-        binding: 3,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: "storage" },
-      },
-      {
-        binding: 4,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: "read-only-storage" },
-      },
-      {
-        binding: 5,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: "storage" },
-      },
-    ],
-  });
-
-  const cursorQueryBGL = device.createBindGroupLayout({
-    label: "Cursor Query BGL",
-    entries: [
-      {
-        binding: 0,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: "uniform" },
-      },
-      {
-        binding: 1,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: "uniform" },
-      },
-      {
-        binding: 2,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: "uniform" },
-      },
-      {
-        binding: 3,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: "storage" },
-      },
-      {
-        binding: 4,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: "read-only-storage" },
-      },
-      {
-        binding: 5,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: "storage" },
-      },
-      {
-        binding: 6,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: "storage" },
-      },
-    ],
-  });
-
-  // Render: 0=uniform, 1=current(read) for fragment
-  const renderBGL = device.createBindGroupLayout({
-    label: "Render BGL",
-    entries: [
-      {
-        binding: 0,
-        visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
-        buffer: { type: "uniform" },
-      },
-      {
-        binding: 1,
-        visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
-        buffer: { type: "uniform" },
-      },
-      {
-        binding: 5,
-        visibility: GPUShaderStage.FRAGMENT,
-        buffer: { type: "storage" },
-      },
-    ],
-  });
-
-  // ----- Pipelines -----
-  const renderPipeline = device.createRenderPipeline({
-    label: "Render Pipeline",
-    layout: device.createPipelineLayout({
-      bindGroupLayouts: [renderBGL],
-      label: "Render Pipeline Layout",
-    }),
-    vertex: { module, entryPoint: "vs" },
-    fragment: { module, entryPoint: "fs", targets: [{ format }] },
-    primitive: { topology: "triangle-list" },
-  });
-
-  const normalComputePipeline = device.createComputePipeline({
-    label: "Normal Compute Pipeline",
-    layout: device.createPipelineLayout({
-      bindGroupLayouts: [normalComputeBGL],
-      label: "Normal Compute Pipeline Layout",
-    }),
-    compute: { module, entryPoint: "calc_normals" },
-  });
-
-  const cursorQueryPipeline = device.createComputePipeline({
-    label: "Cursor Query Pipeline",
-    layout: device.createPipelineLayout({
-      bindGroupLayouts: [cursorQueryBGL],
-      label: "Cursor Query Pipeline Layout",
-    }),
-    compute: { module, entryPoint: "cursor_query" },
-  });
-
-  const terrainTextureComputePipeline = device.createComputePipeline({
-    label: "Terrain Texture Compute Pipeline",
-    layout: device.createPipelineLayout({
-      bindGroupLayouts: [outputTextureComputeBGL],
-      label: "Terrain Texture Compute Pipeline Layout",
-    }),
-    compute: { module, entryPoint: "terrain_render" },
-  });
-
-  const shadowTextureComputePipeline = device.createComputePipeline({
-    label: "Shadow Texture Compute Pipeline",
-    layout: device.createPipelineLayout({
-      bindGroupLayouts: [outputTextureComputeBGL],
-      label: "Shadow Texture Compute Pipeline Layout",
-    }),
-    compute: { module, entryPoint: "shadow_render" },
-  });
-
-  const stepComputePipeline = device.createComputePipeline({
-    label: "Step Compute Pipeline",
-    layout: device.createPipelineLayout({
-      bindGroupLayouts: [stepComputeBGL],
-      label: "Step Compute Pipeline Layout",
-    }),
-    compute: { module, entryPoint: "step" },
-  });
-
-  // ----- Bind groups (prebuild both directions) -----
-  const computeBG_AtoB = device.createBindGroup({
-    label: "Step Compute BG A→B",
-    layout: stepComputeBGL,
-    entries: [
-      { binding: 0, resource: { buffer: viewUniformBuffer } },
-      { binding: 1, resource: { buffer: inputUniformBuffer } },
-      { binding: 2, resource: { buffer: terrainBuffer } },
-      { binding: 3, resource: { buffer: prevCellsBuffer } }, // read
-      { binding: 4, resource: { buffer: nextCellsBuffer } }, // write
-      { binding: 5, resource: { buffer: randomFlowDirectionsBuffer } },
-    ],
-  });
-
-  const computeBG_BtoA = device.createBindGroup({
-    label: "Step Compute BG B→A",
-    layout: stepComputeBGL,
-    entries: [
-      { binding: 0, resource: { buffer: viewUniformBuffer } },
-      { binding: 1, resource: { buffer: inputUniformBuffer } },
-      { binding: 2, resource: { buffer: terrainBuffer } },
-      { binding: 3, resource: { buffer: nextCellsBuffer } }, // read
-      { binding: 4, resource: { buffer: prevCellsBuffer } }, // write
-      { binding: 5, resource: { buffer: randomFlowDirectionsBuffer } },
-    ],
-  });
-
-  const normalComputeBG_A = device.createBindGroup({
-    label: "Normal Compute A",
-    layout: normalComputeBGL,
-    entries: [
-      { binding: 0, resource: { buffer: viewUniformBuffer } },
-      { binding: 1, resource: { buffer: inputUniformBuffer } },
-      { binding: 2, resource: { buffer: terrainBuffer } },
-      { binding: 3, resource: { buffer: prevCellsBuffer } }, // read
-    ],
-  });
-
-  const normalComputeBG_B = device.createBindGroup({
-    label: "Normal Compute B",
-    layout: normalComputeBGL,
-    entries: [
-      { binding: 0, resource: { buffer: viewUniformBuffer } },
-      { binding: 1, resource: { buffer: inputUniformBuffer } },
-      { binding: 2, resource: { buffer: terrainBuffer } },
-      { binding: 3, resource: { buffer: nextCellsBuffer } }, // read
-    ],
-  });
-
-  const cursorQueryBG_A = device.createBindGroup({
-    label: "Cursor Query A",
-    layout: cursorQueryBGL,
-    entries: [
-      { binding: 0, resource: { buffer: viewUniformBuffer } },
-      { binding: 1, resource: { buffer: inputUniformBuffer } },
-      { binding: 2, resource: { buffer: terrainBuffer } },
-      { binding: 3, resource: { buffer: prevCellsBuffer } }, // prev
-      { binding: 4, resource: { buffer: terrainColorsBuffer } },
-      { binding: 5, resource: { buffer: outputTextureBuffer } },
-      { binding: 6, resource: { buffer: cursorQueryBuffer } },
-    ],
-  });
-
-  const cursorQueryBG_B = device.createBindGroup({
-    label: "Cursor Query B",
-    layout: cursorQueryBGL,
-    entries: [
-      { binding: 0, resource: { buffer: viewUniformBuffer } },
-      { binding: 1, resource: { buffer: inputUniformBuffer } },
-      { binding: 2, resource: { buffer: terrainBuffer } },
-      { binding: 3, resource: { buffer: nextCellsBuffer } }, // next
-      { binding: 4, resource: { buffer: terrainColorsBuffer } },
-      { binding: 5, resource: { buffer: outputTextureBuffer } },
-      { binding: 6, resource: { buffer: cursorQueryBuffer } },
-    ],
-  });
-
-  const outputTextureBG_showA = device.createBindGroup({
-    label: "Output Texture BG show A",
-    layout: outputTextureComputeBGL,
-    entries: [
-      { binding: 0, resource: { buffer: viewUniformBuffer } },
-      { binding: 1, resource: { buffer: inputUniformBuffer } },
-      { binding: 2, resource: { buffer: terrainBuffer } },
-      { binding: 3, resource: { buffer: prevCellsBuffer } },
-      { binding: 4, resource: { buffer: terrainColorsBuffer } },
-      { binding: 5, resource: { buffer: outputTextureBuffer } },
-    ],
-  });
-
-  const outputTextureBG_showB = device.createBindGroup({
-    label: "Output Texture BG show B",
-    layout: outputTextureComputeBGL,
-    entries: [
-      { binding: 0, resource: { buffer: viewUniformBuffer } },
-      { binding: 1, resource: { buffer: inputUniformBuffer } },
-      { binding: 2, resource: { buffer: terrainBuffer } },
-      { binding: 3, resource: { buffer: nextCellsBuffer } },
-      { binding: 4, resource: { buffer: terrainColorsBuffer } },
-      { binding: 5, resource: { buffer: outputTextureBuffer } },
-    ],
-  });
-
-  const renderBG_showA = device.createBindGroup({
-    label: "Render BG show A",
-    layout: renderBGL,
-    entries: [
-      { binding: 0, resource: { buffer: viewUniformBuffer } },
-      { binding: 1, resource: { buffer: inputUniformBuffer } },
-      { binding: 5, resource: { buffer: outputTextureBuffer } },
-    ],
-  });
-
-  const renderBG_showB = device.createBindGroup({
-    label: "Render BG show B",
-    layout: renderBGL,
-    entries: [
-      { binding: 0, resource: { buffer: viewUniformBuffer } },
-      { binding: 1, resource: { buffer: inputUniformBuffer } },
-      { binding: 5, resource: { buffer: outputTextureBuffer } },
-    ],
+  // // ----- Bind group layouts -----
+  const bindings = getBindings(device, module, format, {
+    prevCellsBuffer,
+    nextCellsBuffer,
+    terrainBuffer,
+    terrainColorsBuffer,
+    viewUniformBuffer,
+    inputUniformBuffer,
+    outputTextureBuffer,
+    cursorQueryBuffer,
+    randomFlowDirectionsBuffer,
   });
 
   // ----- Render pass descriptor (no explicit typing) -----
@@ -599,11 +270,16 @@ export async function initWebGPU(
 
     // Step Compute: prev -> next in chosen direction
     {
-      const subSteps = 16;
+      const subSteps = 1;
       const stepPass = encoder.beginComputePass({ label: "Step Compute Pass" });
-      stepPass.setPipeline(stepComputePipeline);
+      stepPass.setPipeline(bindings.piplines.stepComputePipeline);
       for (let i = 0; i < subSteps; i++) {
-        stepPass.setBindGroup(0, aToB ? computeBG_AtoB : computeBG_BtoA);
+        stepPass.setBindGroup(
+          0,
+          aToB
+            ? bindings.bindGroups.computeBG_AtoB
+            : bindings.bindGroups.computeBG_BtoA
+        );
         stepPass.dispatchWorkgroups(dispatchX, dispatchY, 1);
         aToB = !aToB;
       }
@@ -629,8 +305,13 @@ export async function initWebGPU(
       const normalPass = encoder.beginComputePass({
         label: "Normal Compute Pass",
       });
-      normalPass.setPipeline(normalComputePipeline);
-      normalPass.setBindGroup(0, aToB ? normalComputeBG_B : normalComputeBG_A);
+      normalPass.setPipeline(bindings.piplines.normalComputePipeline);
+      normalPass.setBindGroup(
+        0,
+        aToB
+          ? bindings.bindGroups.normalComputeBG_B
+          : bindings.bindGroups.normalComputeBG_A
+      );
       normalPass.dispatchWorkgroups(dispatchX, dispatchY, 1);
       normalPass.end();
 
@@ -642,10 +323,14 @@ export async function initWebGPU(
       const terrainRenderPass = encoder.beginComputePass({
         label: "Terrain Texture Compute Pass",
       });
-      terrainRenderPass.setPipeline(terrainTextureComputePipeline);
+      terrainRenderPass.setPipeline(
+        bindings.piplines.terrainTextureComputePipeline
+      );
       terrainRenderPass.setBindGroup(
         0,
-        aToB ? outputTextureBG_showB : outputTextureBG_showA
+        aToB
+          ? bindings.bindGroups.outputTextureBG_showB
+          : bindings.bindGroups.outputTextureBG_showA
       );
       terrainRenderPass.dispatchWorkgroups(dispatchX, dispatchY, 1);
       terrainRenderPass.end();
@@ -657,10 +342,14 @@ export async function initWebGPU(
       const shadowRenderPass = encoder.beginComputePass({
         label: "Shadow Texture Compute Pass",
       });
-      shadowRenderPass.setPipeline(shadowTextureComputePipeline);
+      shadowRenderPass.setPipeline(
+        bindings.piplines.shadowTextureComputePipeline
+      );
       shadowRenderPass.setBindGroup(
         0,
-        aToB ? outputTextureBG_showB : outputTextureBG_showA
+        aToB
+          ? bindings.bindGroups.outputTextureBG_showB
+          : bindings.bindGroups.outputTextureBG_showA
       );
       shadowRenderPass.dispatchWorkgroups(dispatchX, dispatchY, 1);
       shadowRenderPass.end();
@@ -674,8 +363,13 @@ export async function initWebGPU(
       const cursorQueryPass = encoder.beginComputePass({
         label: "Cursor Query Pass",
       });
-      cursorQueryPass.setPipeline(cursorQueryPipeline);
-      cursorQueryPass.setBindGroup(0, aToB ? cursorQueryBG_B : cursorQueryBG_A);
+      cursorQueryPass.setPipeline(bindings.piplines.cursorQueryPipeline);
+      cursorQueryPass.setBindGroup(
+        0,
+        aToB
+          ? bindings.bindGroups.cursorQueryBG_B
+          : bindings.bindGroups.cursorQueryBG_A
+      );
       cursorQueryPass.dispatchWorkgroups(1, 1, 1);
       cursorQueryPass.end();
     }
@@ -687,8 +381,8 @@ export async function initWebGPU(
 
     {
       const rpass = encoder.beginRenderPass(renderPassDesc);
-      rpass.setPipeline(renderPipeline);
-      rpass.setBindGroup(0, aToB ? renderBG_showB : renderBG_showA);
+      rpass.setPipeline(bindings.piplines.renderPipeline);
+      rpass.setBindGroup(0, bindings.bindGroups.renderBG);
       rpass.draw(3); // keep 6 if your VS expects a quad; use 3 for fullscreen triangle VS
       rpass.end();
     }

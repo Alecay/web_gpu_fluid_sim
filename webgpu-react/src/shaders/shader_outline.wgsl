@@ -33,10 +33,10 @@
 
 // Compute reads previous (bind 3) and writes next (bind 4)
 // @group(0) @binding(3) var<storage, read_write> prevCells : array<CellData>;
-@group(0) @binding(4) var<storage, read_write> nextCells : array<CellData>;
-@group(0) @binding(5) var<storage, read>       randomDirectionsBuffer : array<u32>;
+@group(0) @binding(6) var<storage, read_write> nextCells : array<CellData>;
+@group(0) @binding(7) var<storage, read>       randomDirectionsBuffer : array<u32>;
 
 //{step_compute}
 
-@group(0) @binding(6) var<storage, read_write> cursorQuery : CursorQuery;
+@group(0) @binding(8) var<storage, read_write> cursorQuery : CursorQuery;
 //{cursor_query}

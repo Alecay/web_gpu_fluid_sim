@@ -21,6 +21,12 @@ struct CellData {
 };
 // total size = 48 bytes, 12 floats
 
+struct StepData
+{
+  height       : f32,
+  fAmount      : f32,
+}
+
 // Terrain params you had in HLSL: maxCellValue, terrainHeightMultiplier, colorSteps, numberOfTerrainColors
 struct TerrainParams {
   maxCellValue            : f32,   // e.g., 100.0
