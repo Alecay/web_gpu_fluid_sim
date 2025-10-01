@@ -16,10 +16,8 @@ import { DefaultInput, Input } from "./interfaces/Input";
 import { CursorQuery, DefaultCursorQuery } from "./interfaces/CursorQuery";
 import CanvasUI from "./components/ui/CanvasUI";
 import { WebGPUHandle } from "./webgpu/initWebGPU";
-import {
-  computeVisibleAreaInCanvas,
-  VisibleRect,
-} from "./interfaces/VisibleRect";
+import { VisibleRect } from "./interfaces/VisibleRect";
+import { Speed } from "./components/ui/TimeControlsGroup";
 
 const isEditableTarget = (t: EventTarget | null) => {
   const el = t as HTMLElement | null;
@@ -36,22 +34,31 @@ const isEditableTarget = (t: EventTarget | null) => {
 const clamp = (v: number, min: number, max: number) =>
   Math.min(max, Math.max(min, v));
 
-const computeLimitsTopLeft = (
+const computeLimitsCentered = (
   vw: number,
   vh: number,
   cw: number,
   ch: number
-) => ({
-  xMin: -Math.max(0, cw - vw),
-  xMax: 0,
-  yMin: -Math.max(0, ch - vh),
-  yMax: 0,
-});
+) => {
+  const halfExtraW = Math.max(0, (cw - vw) / 2);
+  const halfExtraH = Math.max(0, (ch - vh) / 2);
+
+  return {
+    xMin: -halfExtraW,
+    xMax: halfExtraW,
+    yMin: -halfExtraH,
+    yMax: halfExtraH,
+  };
+};
 
 export default function App() {
   const [settings, setSettings] = useState<NoiseUISettings>(
     defaultNoiseUISettings
   );
+
+  // Game State
+  const [paused, setPaused] = React.useState(false);
+  const [speed, setSpeed] = React.useState<Speed>(1);
 
   const [input, setInput] = useState<Input>(DefaultInput);
   const inputRef = useRef(input);
@@ -184,10 +191,18 @@ export default function App() {
         k === "arrowup" ||
         k === "arrowleft" ||
         k === "arrowdown" ||
-        k === "arrowright" ||
-        k === "ShiftLeft"
+        k === "arrowright"
       ) {
         pressed.add(k);
+        e.preventDefault();
+      }
+
+      if (e.code == "Space") {
+        setInput({
+          ...input,
+          simulationSubSteps: !paused ? 0 : Math.ceil(4 * speed),
+        });
+        setPaused((p) => !p);
         e.preventDefault();
       }
     };
@@ -197,10 +212,27 @@ export default function App() {
       pressed.delete(k);
     };
 
-    const resize = () => {
+    function getScaleBounds(
+      vw: number,
+      vh: number,
+      baseW: number,
+      baseH: number
+    ) {
+      // Minimum scale that fully covers the viewport in BOTH axes
+      const minScale = Math.max(vw / baseW, vh / baseH);
+
+      // Maximum scale so that neither axis exceeds 4× the viewport
+      // (choose the tighter cap to keep a single uniform scale)
+      const maxScale = Math.min((vw * 4) / baseW, (vh * 4) / baseH);
+
+      return { minScale, maxScale };
+    }
+
+    function resize() {
       const vw = window.innerWidth;
       const vh = window.innerHeight;
 
+      // base size at scale=1 with your aspect logic
       const aspect = settings.width / settings.height;
       let baseW = vw;
       let baseH = baseW / aspect;
@@ -209,19 +241,20 @@ export default function App() {
         baseW = baseH * aspect;
       }
 
-      // Size after scale (use your own min/max if you want)
-      const newW = clamp(baseW * canvasScale, vw, vw * 4);
-      const newH = clamp(baseH * canvasScale, vh, vh * 4);
+      // clamp the *scale*, not width/height
+      const { minScale, maxScale } = getScaleBounds(vw, vh, baseW, baseH);
+      const s = Math.min(Math.max(canvasScale, minScale), maxScale);
 
-      // compute limits from the fresh size, not state
-      const { xMin, xMax, yMin, yMax } = computeLimitsTopLeft(
+      const newW = baseW * s;
+      const newH = baseH * s;
+
+      const { xMin, xMax, yMin, yMax } = computeLimitsCentered(
         vw,
         vh,
         newW,
         newH
       );
 
-      // Update state
       setCanvasSize({ width: newW, height: newH });
       setCanvasPosition((p) => ({
         x: clamp(p.x, xMin, xMax),
@@ -230,7 +263,7 @@ export default function App() {
 
       requestAnimationFrame(() => updateMouseFromClient());
       updateVisibleRect();
-    };
+    }
 
     const moveCanvas = (dt: number) => {
       let dx = 0,
@@ -250,7 +283,12 @@ export default function App() {
         const cw = canvasSize.width;
         const ch = canvasSize.height;
 
-        const { xMin, xMax, yMin, yMax } = computeLimitsTopLeft(vw, vh, cw, ch);
+        const { xMin, xMax, yMin, yMax } = computeLimitsCentered(
+          vw,
+          vh,
+          cw,
+          ch
+        );
 
         setCanvasPosition((p) => ({
           // moving “right” makes the world shift left → keep the minus
@@ -268,21 +306,12 @@ export default function App() {
 
       const sign = Math.sign(e.deltaY) * -1;
 
-      requestAnimationFrame(() => {
-        var center = toCanvasPosition(
-          window.innerWidth / 2,
-          window.innerHeight / 2
-        );
-        console.log(center);
-      });
-
       if (e.shiftKey) {
         // adjust brush radius
         setInput((prev) => {
           const delta = 0.1 * prev.mouseRadius * sign;
           const nextRadius = Math.max(5, prev.mouseRadius + delta);
           const next = { ...prev, mouseRadius: nextRadius };
-          // webHandleRef.current?.updateInputBuffer?.(next);
           return next;
         });
       } else {
@@ -296,7 +325,6 @@ export default function App() {
           const next = clamp(prev + 0.1 * prev * sign, minScale, maxScale); // pick sensible min/max
           return next;
         });
-        resize(); // if resize is cheap; otherwise requestAnimationFrame(resize)
 
         // Re-enable easing on the next frame so panning can ease again
         //requestAnimationFrame(() => setCanvasPositionEasing(true));
@@ -340,6 +368,7 @@ export default function App() {
       last = t;
 
       moveCanvas(dt);
+      updateVisibleRect();
       rafId = requestAnimationFrame(tick);
     };
 
@@ -411,7 +440,6 @@ export default function App() {
           vr.y1 === lastVisRef.current.y1;
 
         if (same) return;
-        console.log(vr);
         lastVisRef.current = vr;
         setInput((prev) => {
           const next = { ...prev, visibleRect: vr, visibleRectChanged: true };
@@ -422,7 +450,7 @@ export default function App() {
 
       defer ? requestAnimationFrame(run) : run();
     },
-    [setInput, toCanvasPosition]
+    [setInput, toCanvasPosition, window.innerWidth, window.innerHeight]
   );
 
   // useEffect(() => webHandleRef.current?.updateInputBuffer?.(input), [input]);
@@ -440,6 +468,7 @@ export default function App() {
           overflow: "hidden",
           display: "grid",
           placeItems: "center",
+          cursor: "none",
         }}
       >
         <div
@@ -449,7 +478,7 @@ export default function App() {
             backgroundColor: "black",
             width: canvasSize.width,
             height: canvasSize.height,
-            inset: 0, // top:0,left:0,right:0,bottom:0
+            //inset: 0, // top:0,left:0,right:0,bottom:0
             zIndex: -5,
             display: "grid",
             placeItems: "center",
@@ -481,6 +510,10 @@ export default function App() {
             // webHandleRef.current?.updateInputBuffer?.(i);
           }}
           cursorQuery={cursorQuery}
+          paused={paused}
+          setPaused={setPaused}
+          speed={speed}
+          setSpeed={setSpeed}
         />
       </div>
     </>

@@ -7,7 +7,8 @@ import HotkeyModal from "./HotkeyModal";
 import NoiseSettingsForm, { NoiseUISettings } from "../NoiseSettingsForm";
 import ControlsUI from "./ControlsUI";
 import TimeControlGroup, { Speed } from "./TimeControlsGroup";
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { fps } from "../../interfaces/FPSMeter";
 
 interface CanvasUIProps {
   settings: NoiseUISettings;
@@ -15,6 +16,10 @@ interface CanvasUIProps {
   input: Input;
   setInput: (input: Input) => void;
   cursorQuery: CursorQuery;
+  paused: boolean;
+  setPaused: (value: React.SetStateAction<boolean>) => void;
+  speed: Speed;
+  setSpeed: (value: React.SetStateAction<Speed>) => void;
 }
 
 export default function CanvasUI({
@@ -23,9 +28,22 @@ export default function CanvasUI({
   input,
   setInput,
   cursorQuery,
+  paused,
+  setPaused,
+  speed,
+  setSpeed,
 }: CanvasUIProps) {
-  const [paused, setPaused] = React.useState(false);
-  const [speed, setSpeed] = React.useState<Speed>(1);
+  const [fpsValue, setFpsValue] = useState(0);
+  const [cpuMs, setCPUMs] = useState(0);
+
+  // update this every 250ms or so
+  useEffect(() => {
+    const id = setInterval(() => {
+      setFpsValue(fps.fps); // or fps.ema if you prefer the smoothed number
+      setCPUMs(fps.cpuMs);
+    }, 250);
+    return () => clearInterval(id);
+  }, []);
 
   return (
     <div
@@ -60,6 +78,9 @@ export default function CanvasUI({
           console.log("Set simulation sub steps to: ", Math.ceil(4 * speed));
         }}
       />
+      <div style={{ position: "absolute", top: "5px", left: "5px" }}>
+        {`${fpsValue} (${cpuMs.toFixed(2)} ms)`}
+      </div>
       {/* <div
         style={{
           position: "absolute",

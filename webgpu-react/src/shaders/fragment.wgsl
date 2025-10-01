@@ -17,8 +17,16 @@ fn fs(@builtin(position) frag_pos: vec4f) -> @location(0) vec4f {
     let mouseWidth  = 2.0;
     let inOuter = inside_circle(vec2<u32>(x,y), uInput.mousePos, uInput.mouseRadius);
     let inInner = inside_circle(vec2<u32>(x,y), uInput.mousePos, uInput.mouseRadius - mouseWidth);
+    
+    let isCursorSpot = 
+        (x == uInput.mousePos.x && y == uInput.mousePos.y)     ||   // center
+        (x == uInput.mousePos.x - 1 && y == uInput.mousePos.y) ||   // left
+        (x == uInput.mousePos.x  + 1&& y == uInput.mousePos.y) ||   // right
+        (x == uInput.mousePos.x && y == uInput.mousePos.y + 1) ||   // up
+        (x == uInput.mousePos.x && y == uInput.mousePos.y - 1);     // down
+    
     var cursorOutline = vec4f(0.0, 0.0, 0.0, 0.0);
-    if (inOuter && !inInner) 
+    if ((inOuter && !inInner) || isCursorSpot) 
     {
         cursorOutline = vec4f(0.0, 0.0, 0.0, 0.5);
     }

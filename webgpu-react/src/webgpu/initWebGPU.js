@@ -9,6 +9,8 @@ import {
 import { createOrUpdateViewBuffer } from "./buffers/viewBuffer";
 import { createOrUpdateInputBuffer } from "./buffers/inputBuffer";
 import { getBindings } from "./bindingGroups";
+import { inputsEqual } from "../interfaces/Input";
+import { fps } from "../interfaces/FPSMeter";
 
 /**
  * @param {HTMLCanvasElement | null} canvas
@@ -130,17 +132,20 @@ export async function initWebGPU(
     );
   }
 
+  const outputTexLayers = 3;
+  const outputTexSize =
+    noiseSettings.width * noiseSettings.height * 4 * 4 * outputTexLayers;
   // Create output texture buffer
   const outputTextureBuffer = device.createBuffer({
     label: "Output Texture",
-    size: noiseSettings.width * noiseSettings.height * 4 * 8,
+    size: outputTexSize, // width * height * 4 bytes per float * 4 floats * layers
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
 
   device.queue.writeBuffer(
     outputTextureBuffer,
     0,
-    new Float32Array(noiseSettings.width * noiseSettings.height * 8)
+    new Float32Array(outputTexSize / 4)
   );
 
   // ----- Storage buffers (vec4f per cell => 16 bytes) -----
@@ -249,11 +254,19 @@ export async function initWebGPU(
   // ----- Frame loop -----
   let aToB = true; // true => compute uses A->B and we render B this frame
   let rafId = 0;
+  var lastInput = getInput();
+
   async function frame(tMs = 0) {
     if (context.__deviceId !== device.__id) return;
 
+    fps.begin();
     var input = getInput();
-    updateInputBuffer(input);
+
+    if (!inputsEqual(input, lastInput)) {
+      updateInputBuffer(input);
+      lastInput = input;
+    }
+
     const preformQuery =
       input.mouseMoved ||
       input.mouse0Held ||
@@ -434,6 +447,8 @@ export async function initWebGPU(
     if (input.mouseMoved || updateShadowTexture) setInput(input);
 
     //console.log(input.visibleRect);
+
+    fps.end(tMs);
 
     frameIdx++;
 

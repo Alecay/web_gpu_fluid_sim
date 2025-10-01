@@ -12,6 +12,26 @@ export interface Input {
   simulationSubSteps: number;
 }
 
+export function inputsEqual(a: Input, b: Input): boolean {
+  return (
+    a.mouse0Held === b.mouse0Held &&
+    a.mouse1Held === b.mouse1Held &&
+    a.mouse2Held === b.mouse2Held &&
+    a.mouseRadius === b.mouseRadius &&
+    a.mouseMoved === b.mouseMoved &&
+    a.mousePosition.x === b.mousePosition.x &&
+    a.mousePosition.y === b.mousePosition.y &&
+    a.visibleRect.x0 === b.visibleRect.x0 &&
+    a.visibleRect.y0 === b.visibleRect.y0 &&
+    a.visibleRect.x1 === b.visibleRect.x1 &&
+    a.visibleRect.y1 === b.visibleRect.y1 &&
+    a.visibleRect.width === b.visibleRect.width &&
+    a.visibleRect.height === b.visibleRect.height &&
+    a.visibleRectChanged === b.visibleRectChanged &&
+    a.simulationSubSteps === b.simulationSubSteps
+  );
+}
+
 export const DefaultInput: Input = {
   mouse0Held: false,
   mouse1Held: false,
