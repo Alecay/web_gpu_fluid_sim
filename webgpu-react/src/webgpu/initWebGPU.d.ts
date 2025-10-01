@@ -6,16 +6,16 @@ import type { Dispatch, SetStateAction } from "react";
 
 export interface WebGPUHandle {
   cleanup: () => void;
-  updateInputBuffer: (newInput: Input) => void;
+  // updateInputBuffer: (newInput: Input) => void;
   frame: () => void;
   // add more methods as your JS returns them
 }
 
 // If your JS exports a *named* function
 export function initWebGPU(
-  canvas: HTMLCanvasElement,
+  canvas: HTMLCanvasElement | null,
   noiseSettings: NoiseUISettings,
-  input: Input,
+  getInput: () => Input,
   setInput: Dispatch<SetStateAction<Input>>,
   setCursorQuery: Dispatch<SetStateAction<CursorQuery>>
 ): Promise<WebGPUHandle>;

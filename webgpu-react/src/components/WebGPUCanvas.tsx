@@ -18,7 +18,7 @@ import { WebGPUHandle } from "@/webgpu/initWebGPU";
 interface WebGPUCanvasProps {
   style?: React.CSSProperties; // e.g., { width: '100%', height: '80vh' }
   noiseSettings?: NoiseUISettings;
-  input: Input;
+  inputRef: React.RefObject<Input>;
   setInput: React.Dispatch<React.SetStateAction<Input>>;
   setWebGPUHandle: React.Dispatch<React.SetStateAction<WebGPUHandle | null>>;
   setCursorQuery: React.Dispatch<React.SetStateAction<CursorQuery>>;
@@ -29,7 +29,7 @@ const WebGPUCanvas = forwardRef<HTMLCanvasElement, WebGPUCanvasProps>(
   (
     {
       noiseSettings = defaultNoiseUISettings,
-      input,
+      inputRef,
       setInput,
       setWebGPUHandle,
       setCursorQuery,
@@ -51,7 +51,7 @@ const WebGPUCanvas = forwardRef<HTMLCanvasElement, WebGPUCanvasProps>(
         const handle = await initWebGPU(
           localRef.current,
           noiseSettings,
-          input,
+          () => inputRef.current,
           setInput,
           setCursorQuery
         );

@@ -54,6 +54,11 @@ export default function App() {
   );
 
   const [input, setInput] = useState<Input>(DefaultInput);
+  const inputRef = useRef(input);
+  useEffect(() => {
+    inputRef.current = input;
+  }, [input]);
+
   const [cursorQuery, setCursorQuery] =
     useState<CursorQuery>(DefaultCursorQuery);
 
@@ -112,9 +117,32 @@ export default function App() {
           mousePosition: { x: nx, y: ny },
           mouseMoved: markMoved,
         };
-        webHandleRef.current?.updateInputBuffer?.(next);
+        // webHandleRef.current?.updateInputBuffer?.(next);
         return next;
       });
+    },
+    [settings.width, settings.height]
+  );
+
+  const toCanvasPosition = useCallback(
+    (clientX: number, clientY: number) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return { x: 0, y: 0 };
+
+      const pos = { x: clientX, y: clientY };
+
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return { x: 0, y: 0 };
+
+      const sx = canvas.width / rect.width;
+      const sy = canvas.height / rect.height;
+
+      const mx = Math.floor((pos.x - rect.left) * sx);
+      const my = Math.floor((pos.y - rect.top) * sy);
+
+      const nx = clamp(mx, 0, settings.width - 1);
+      const ny = clamp(my, 0, settings.height - 1);
+      return { x: nx, y: ny };
     },
     [settings.width, settings.height]
   );
@@ -240,13 +268,21 @@ export default function App() {
 
       const sign = Math.sign(e.deltaY) * -1;
 
+      requestAnimationFrame(() => {
+        var center = toCanvasPosition(
+          window.innerWidth / 2,
+          window.innerHeight / 2
+        );
+        console.log(center);
+      });
+
       if (e.shiftKey) {
         // adjust brush radius
         setInput((prev) => {
           const delta = 0.1 * prev.mouseRadius * sign;
           const nextRadius = Math.max(5, prev.mouseRadius + delta);
           const next = { ...prev, mouseRadius: nextRadius };
-          webHandleRef.current?.updateInputBuffer?.(next);
+          // webHandleRef.current?.updateInputBuffer?.(next);
           return next;
         });
       } else {
@@ -280,7 +316,7 @@ export default function App() {
         const next = { ...prev };
         if (e.button === 0) next.mouse0Held = true;
         if (e.button === 2) next.mouse1Held = true;
-        webHandleRef.current?.updateInputBuffer?.(next);
+        // webHandleRef.current?.updateInputBuffer?.(next);
         return next;
       });
     };
@@ -290,7 +326,7 @@ export default function App() {
         const next = { ...prev };
         if (e.button === 0) next.mouse0Held = false;
         if (e.button === 2) next.mouse1Held = false;
-        webHandleRef.current?.updateInputBuffer?.(next);
+        // webHandleRef.current?.updateInputBuffer?.(next);
         return next;
       });
     };
@@ -347,7 +383,23 @@ export default function App() {
         const el = canvasRef.current;
         if (!el) return;
 
-        const vr = computeVisibleAreaInCanvas(el); // your function from earlier
+        //const vr = computeVisibleAreaInCanvas(el); // your function from earlier
+
+        const topLeft = toCanvasPosition(0, 0);
+        const bottomRight = toCanvasPosition(
+          window.innerWidth,
+          window.innerHeight
+        );
+
+        const vr: VisibleRect = {
+          x0: topLeft.x,
+          y0: topLeft.y,
+          x1: bottomRight.x,
+          y1: bottomRight.y,
+          width: bottomRight.x - topLeft.x,
+          height: bottomRight.y - topLeft.y,
+        };
+
         if (!vr) return;
 
         // Skip if unchanged
@@ -359,17 +411,18 @@ export default function App() {
           vr.y1 === lastVisRef.current.y1;
 
         if (same) return;
+        console.log(vr);
         lastVisRef.current = vr;
         setInput((prev) => {
           const next = { ...prev, visibleRect: vr, visibleRectChanged: true };
-          webHandleRef.current?.updateInputBuffer?.(next);
+          // webHandleRef.current?.updateInputBuffer?.(next);
           return next;
         });
       };
 
       defer ? requestAnimationFrame(run) : run();
     },
-    [setInput]
+    [setInput, toCanvasPosition]
   );
 
   // useEffect(() => webHandleRef.current?.updateInputBuffer?.(input), [input]);
@@ -412,7 +465,7 @@ export default function App() {
           <WebGPUCanvas
             ref={canvasRef} // forward it down
             noiseSettings={settings}
-            input={input}
+            inputRef={inputRef}
             setInput={setInput}
             setWebGPUHandle={setWebHandle}
             setCursorQuery={setCursorQuery}
@@ -425,7 +478,7 @@ export default function App() {
           input={input}
           setInput={(i: Input) => {
             setInput(i);
-            webHandleRef.current?.updateInputBuffer?.(i);
+            // webHandleRef.current?.updateInputBuffer?.(i);
           }}
           cursorQuery={cursorQuery}
         />

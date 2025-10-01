@@ -13,7 +13,7 @@ import { getBindings } from "./bindingGroups";
 /**
  * @param {HTMLCanvasElement | null} canvas
  * @param {NoiseUISettings} noiseSettings
- * @param {Input} input
+ * @param {() => Input} getInput
  * @param {import('react').Dispatch<import('react').SetStateAction<Input>>} setInput
  * @param {import('react').Dispatch<import('react').SetStateAction<CursorQuery>>} setCursorQuery
  * @returns {Promise<WebGPUHandle>}
@@ -21,7 +21,7 @@ import { getBindings } from "./bindingGroups";
 export async function initWebGPU(
   canvas,
   noiseSettings = defaultNoiseUISettings,
-  input,
+  getInput,
   setInput,
   setCursorQuery
 ) {
@@ -87,12 +87,14 @@ export async function initWebGPU(
     );
   }
 
+  const initialInput = getInput();
+
   const inputUniformBuffer = createOrUpdateInputBuffer(device, {
-    mousePos: input.mousePosition,
-    mouse0Held: input.mouse0Held,
-    mouse1Held: input.mouse1Held,
-    mouseRadius: input.mouseRadius,
-    visibleRect: input.visibleRect,
+    mousePos: initialInput.mousePosition,
+    mouse0Held: initialInput.mouse0Held,
+    mouse1Held: initialInput.mouse1Held,
+    mouseRadius: initialInput.mouseRadius,
+    visibleRect: initialInput.visibleRect,
   });
 
   const terrainBuffer = createOrUpdateTerrainParamsBuffer(
@@ -110,17 +112,11 @@ export async function initWebGPU(
     noiseSettings.colors
   );
 
-  function updateInput(i) {
-    input = i;
-    setInput(i);
-  }
-
   /**
    * @param {Input} newInput
    * @returns {Promise<null>}
    */
   function updateInputBuffer(newInput) {
-    input = newInput;
     createOrUpdateInputBuffer(
       device,
       {
@@ -256,6 +252,8 @@ export async function initWebGPU(
   async function frame(tMs = 0) {
     if (context.__deviceId !== device.__id) return;
 
+    var input = getInput();
+    updateInputBuffer(input);
     const preformQuery =
       input.mouseMoved ||
       input.mouse0Held ||
@@ -359,7 +357,7 @@ export async function initWebGPU(
       shadowRenderPass.end();
       // console.log("Updated Shadow Texture");
 
-      updateInput({ ...input, visibleRectChanged: false });
+      input = { ...input, visibleRectChanged: false };
     }
 
     // query
@@ -431,7 +429,11 @@ export async function initWebGPU(
     updateShadowTexture = false;
     updateNormals = false;
 
-    if (input.mouseMoved) updateInput({ ...input, mouseMoved: false });
+    if (input.mouseMoved) input = { ...input, mouseMoved: false };
+
+    if (input.mouseMoved || updateShadowTexture) setInput(input);
+
+    //console.log(input.visibleRect);
 
     frameIdx++;
 
@@ -462,7 +464,7 @@ export async function initWebGPU(
 
   const handle = {
     cleanup,
-    updateInputBuffer,
+    // updateInputBuffer,
     frame,
   };
 

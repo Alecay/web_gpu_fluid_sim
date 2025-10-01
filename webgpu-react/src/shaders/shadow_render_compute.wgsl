@@ -5,7 +5,11 @@ fn shadow_render(@builtin(global_invocation_id) gid : vec3<u32>) {
     let coord = vec2(x,y);
     if (x >= uView.size.x || y >= uView.size.y) { return; }
 
-    //if(!isVisible(coord, 15)) { return; }
+    if(!isVisible(coord, 16)) 
+    { 
+        //outputTex[idx(x,y) + uView.size.x * uView.size.y] = vec4(1.0, 0.0, 0.0, 0.5);
+        return; 
+    }
 
     let clear = vec4f(0.0, 0.0, 0.0, 0.0);
     let black = vec4f(0.0, 0.0, 0.0, 1.0);
