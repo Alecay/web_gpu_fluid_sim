@@ -6,6 +6,7 @@ class FPSMeter {
   fps = 0; // windowed FPS
   ema = 0; // smoothed FPS
   cpuMs = 0; // per-frame CPU time (your JS work)
+  frameCount = 0;
   private alpha = 0.1;
 
   begin() {
@@ -25,6 +26,8 @@ class FPSMeter {
     this.ema = this.ema
       ? this.ema + this.alpha * (this.fps - this.ema)
       : this.fps;
+
+    this.frameCount++;
   }
 }
 

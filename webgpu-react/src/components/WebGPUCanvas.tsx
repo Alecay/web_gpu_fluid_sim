@@ -22,6 +22,7 @@ interface WebGPUCanvasProps {
   setInput: React.Dispatch<React.SetStateAction<Input>>;
   setWebGPUHandle: React.Dispatch<React.SetStateAction<WebGPUHandle | null>>;
   setCursorQuery: React.Dispatch<React.SetStateAction<CursorQuery>>;
+  setSimIndex: React.Dispatch<React.SetStateAction<number>>;
   children?: React.ReactNode;
 }
 
@@ -34,6 +35,7 @@ const WebGPUCanvas = forwardRef<HTMLCanvasElement, WebGPUCanvasProps>(
       setWebGPUHandle,
       setCursorQuery,
       style,
+      setSimIndex,
     },
     ref
   ) => {
@@ -53,7 +55,8 @@ const WebGPUCanvas = forwardRef<HTMLCanvasElement, WebGPUCanvasProps>(
           noiseSettings,
           () => inputRef.current,
           setInput,
-          setCursorQuery
+          setCursorQuery,
+          setSimIndex
         );
         cleanup = handle.cleanup;
         setWebGPUHandle(handle);

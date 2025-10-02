@@ -1,10 +1,8 @@
-@compute @workgroup_size(16, 16, 1)
+@compute @workgroup_size(1, 1, 1)
 fn cursor_query(@builtin(global_invocation_id) gid : vec3<u32>) {
-    let x = uInput.mousePos.x;
-    let y = uInput.mousePos.y;
-    if (x >= uView.size.x || y >= uView.size.y) { return; }
+    if(gid.x > 0) { return; }
 
-    let i = idx(x, y);
+    let i = idx(uInput.mousePos.x, uInput.mousePos.y);
     var cell = currentCells[i];
     // cell.height = roundedCellHeight(vec2(x,y));
     // cell.fAmount = roundedCellFAmount(vec2(x,y));

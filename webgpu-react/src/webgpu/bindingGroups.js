@@ -229,6 +229,15 @@ export function getBindings(device, module, format, buffers) {
     compute: { module, entryPoint: "cursor_query" },
   });
 
+  const totalQueryPipeline = device.createComputePipeline({
+    label: "Total Query Pipeline",
+    layout: device.createPipelineLayout({
+      bindGroupLayouts: [cursorQueryBGL],
+      label: "Total Query Pipeline Layout",
+    }),
+    compute: { module, entryPoint: "total_query" },
+  });
+
   const terrainTextureComputePipeline = device.createComputePipeline({
     label: "Terrain Texture Compute Pipeline",
     layout: device.createPipelineLayout({
@@ -521,6 +530,7 @@ export function getBindings(device, module, format, buffers) {
       renderPipeline,
       normalComputePipeline,
       cursorQueryPipeline,
+      totalQueryPipeline,
       terrainTextureComputePipeline,
       shadowTextureComputePipeline,
       stepComputePipeline,

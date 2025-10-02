@@ -34,8 +34,8 @@ export default function HeightDisplay({ cursorQuery }: HeightDisplayProps) {
     <div
       style={{
         position: "absolute",
-        bottom: "1px",
-        right: "1px",
+        bottom: "5px",
+        right: "5px",
         fontSize: `${fontSize}px`,
       }}
     >
@@ -56,8 +56,8 @@ export default function HeightDisplay({ cursorQuery }: HeightDisplayProps) {
           height: `${fAmountPX}px`,
           backgroundColor:
             cursorQuery.fAmount < 0
-              ? "rgba(228, 228, 230, 0.46)"
-              : "rgba(26, 39, 187, 0.46)",
+              ? "rgba(196, 196, 199, 1)"
+              : "rgba(26, 39, 187, 1)",
           position: "relative",
           borderRadius: "5px 5px 0px 0px",
         }}
@@ -78,7 +78,7 @@ export default function HeightDisplay({ cursorQuery }: HeightDisplayProps) {
         style={{
           width: `${width}px`,
           height: `${heightPX}px`,
-          backgroundColor: "rgba(15, 84, 9, 0.46)",
+          backgroundColor: "rgba(15, 84, 9, 1)",
           position: "relative",
         }}
       >

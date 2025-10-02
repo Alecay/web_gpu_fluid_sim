@@ -20,6 +20,8 @@ interface CanvasUIProps {
   setPaused: (value: React.SetStateAction<boolean>) => void;
   speed: Speed;
   setSpeed: (value: React.SetStateAction<Speed>) => void;
+  simIndex: number;
+  showControlsUI: boolean;
 }
 
 export default function CanvasUI({
@@ -32,18 +34,29 @@ export default function CanvasUI({
   setPaused,
   speed,
   setSpeed,
+  simIndex,
+  showControlsUI,
 }: CanvasUIProps) {
   const [fpsValue, setFpsValue] = useState(0);
   const [cpuMs, setCPUMs] = useState(0);
+  const [frameCount, setFrameCount] = useState(0);
 
   // update this every 250ms or so
   useEffect(() => {
     const id = setInterval(() => {
       setFpsValue(fps.fps); // or fps.ema if you prefer the smoothed number
       setCPUMs(fps.cpuMs);
+      setFrameCount(fps.frameCount);
     }, 250);
     return () => clearInterval(id);
   }, []);
+
+  const fmt = new Intl.NumberFormat("en", {
+    notation: "compact",
+    compactDisplay: "short", // "long" gives e.g. "4 thousand"
+  });
+
+  const frameDurStr = `${cpuMs.toFixed(2)}`.padStart(5, "0");
 
   return (
     <div
@@ -64,7 +77,7 @@ export default function CanvasUI({
     >
       <div id="output" />
       <MapCoordDisplay input={input} />
-      <ControlsUI />
+      {showControlsUI && <ControlsUI />}
       <TimeControlGroup
         speed={speed}
         paused={paused}
@@ -75,11 +88,27 @@ export default function CanvasUI({
             ...input,
             simulationSubSteps: paused ? 0 : Math.ceil(4 * speed),
           });
-          console.log("Set simulation sub steps to: ", Math.ceil(4 * speed));
         }}
       />
       <div style={{ position: "absolute", top: "5px", left: "5px" }}>
-        {`${fpsValue} (${cpuMs.toFixed(2)} ms)`}
+        {`FPS: ${fpsValue} (Frame Duration: ${frameDurStr} ms) (Frames: ${fmt.format(
+          frameCount
+        )})`}
+      </div>
+      <div style={{ position: "absolute", top: "30px", left: "5px" }}>
+        {`(Simulation Steps: ${fmt.format(simIndex)})`}
+      </div>
+      <div style={{ position: "absolute", top: "55px", left: "5px" }}>
+        {`(Total Fluid: ${fmt.format(
+          Math.ceil(cursorQuery.fluidTotal)
+        )}) (Total Anti Fluid: ${fmt.format(
+          Math.ceil(cursorQuery.anitFluidTotal)
+        )})`}
+      </div>
+      <div style={{ position: "absolute", top: "80px", left: "5px" }}>
+        {`(Total Combined Fluid: ${fmt.format(
+          Math.ceil(cursorQuery.fluidTotal - cursorQuery.anitFluidTotal)
+        )})`}
       </div>
       {/* <div
         style={{

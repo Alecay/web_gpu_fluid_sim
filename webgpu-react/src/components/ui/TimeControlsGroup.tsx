@@ -1,10 +1,34 @@
 // TimeControlGroup.tsx
-import React from "react";
+import React, { useEffect } from "react";
 import { Button, ButtonGroup } from "react-bootstrap";
 import { PauseFill, PlayFill } from "react-bootstrap-icons";
 
 export type Speed = 0.25 | 0.5 | 1 | 2 | 3 | 4;
 const timeOptions = [0.25, 0.5, 1, 2, 3, 4];
+
+const clamp = (v: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, v));
+
+export function nextSpeed(s: Speed, loop: boolean = true): Speed {
+  if (loop) {
+    var index = (timeOptions.indexOf(s) + 1) % timeOptions.length;
+    return timeOptions[index] as Speed;
+  } else {
+    var index = clamp(timeOptions.indexOf(s) + 1, 0, timeOptions.length - 1);
+    return timeOptions[index] as Speed;
+  }
+}
+
+export function previousSpeed(s: Speed, loop: boolean = true): Speed {
+  if (loop) {
+    var index =
+      (timeOptions.indexOf(s) - 1 + timeOptions.length) % timeOptions.length;
+    return timeOptions[index] as Speed;
+  } else {
+    var index = clamp(timeOptions.indexOf(s) - 1, 0, timeOptions.length - 1);
+    return timeOptions[index] as Speed;
+  }
+}
 
 type Props = {
   speed: Speed;
@@ -40,12 +64,48 @@ export default function TimeControlGroup({
     outline: "none",
     boxShadow: "none",
   };
+
+  // useEffect(() => {
+  //   const onKeyDown = (e: KeyboardEvent) => {
+  //     const setNextSpeed = () => {
+  //       setSpeed(nextSpeed(speed, false));
+  //       e.preventDefault();
+  //     };
+
+  //     const setPreviousSpeed = () => {
+  //       setSpeed(previousSpeed(speed, false));
+  //       e.preventDefault();
+  //     };
+
+  //     if (e.code == "Space") {
+  //       // Toggle Pause
+  //       togglePause();
+  //       e.preventDefault();
+  //     } else if (e.code == "Tab") {
+  //       if (paused) {
+  //         // Toggle Pause
+  //         togglePause();
+  //         e.preventDefault();
+  //       } else if (e.shiftKey) {
+  //         setPreviousSpeed();
+  //       } else {
+  //         setNextSpeed();
+  //       }
+  //     }
+  //   };
+
+  //   window.addEventListener("keydown", onKeyDown);
+  //   return () => {
+  //     window.removeEventListener("keydown", onKeyDown);
+  //   };
+  // }, [speed, togglePause, setSpeed]);
+
   return (
     <div
       style={{
         position: "absolute",
-        top: "190px",
-        right: "127px",
+        bottom: "5px",
+        right: "75px",
         pointerEvents: "auto",
       }}
     >

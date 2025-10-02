@@ -9,6 +9,7 @@ import terrainRenderComputeWGSL from "../shaders/terrain_render_compute.wgsl?raw
 import shadowRenderComputeWGSL from "../shaders/shadow_render_compute.wgsl?raw";
 import stepComputeWGSL from "../shaders/step_compute.wgsl?raw";
 import cursorQueryWGSL from "../shaders/cursor_query.wgsl?raw";
+import totalQueryWGSL from "../shaders/total_query.wgsl?raw";
 import shaderOutlineWGSL from "../shaders/shader_outline.wgsl?raw";
 
 export function getShaderText() {
@@ -30,6 +31,7 @@ export function getShaderText() {
   );
   shaderCode = shaderCode.replace("//{step_compute}", stepComputeWGSL);
   shaderCode = shaderCode.replace("//{cursor_query}", cursorQueryWGSL);
+  shaderCode = shaderCode.replace("//{total_query}", totalQueryWGSL);
 
   return shaderCode;
 }

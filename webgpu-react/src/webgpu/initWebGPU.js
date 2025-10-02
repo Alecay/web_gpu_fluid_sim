@@ -18,6 +18,7 @@ import { fps } from "../interfaces/FPSMeter";
  * @param {() => Input} getInput
  * @param {import('react').Dispatch<import('react').SetStateAction<Input>>} setInput
  * @param {import('react').Dispatch<import('react').SetStateAction<CursorQuery>>} setCursorQuery
+ * @param {import('react').Dispatch<import('react').SetStateAction<number>>} setSimIndex
  * @returns {Promise<WebGPUHandle>}
  */
 export async function initWebGPU(
@@ -25,7 +26,8 @@ export async function initWebGPU(
   noiseSettings = defaultNoiseUISettings,
   getInput,
   setInput,
-  setCursorQuery
+  setCursorQuery,
+  setSimIndex
 ) {
   if (!canvas) return () => {};
 
@@ -167,7 +169,7 @@ export async function initWebGPU(
   });
 
   // Initialize both (optional)
-  {
+  const resetMap = () => {
     const init = new Float32Array(
       noiseSettings.width * noiseSettings.height * FLOATS_PER_CELL
     );
@@ -190,7 +192,9 @@ export async function initWebGPU(
 
     device.queue.writeBuffer(prevCellsBuffer, 0, init);
     device.queue.writeBuffer(nextCellsBuffer, 0, init);
-  }
+  };
+
+  resetMap();
 
   const cursorQueryBuffer = device.createBuffer({
     label: "Cursor Query",
@@ -268,11 +272,11 @@ export async function initWebGPU(
     }
 
     const preformQuery =
-      input.mouseMoved ||
-      input.mouse0Held ||
-      input.mouse1Held ||
-      input.mouse2Held ||
-      frameIdx % 7 === 0;
+      // input.mouseMoved ||
+      // input.mouse0Held ||
+      // input.mouse1Held ||
+      // input.mouse2Held ||
+      frameIdx % 6 === 0;
 
     await device.pushErrorScope("validation");
     currentTime = tMs * 0.001;
@@ -298,6 +302,7 @@ export async function initWebGPU(
       }
 
       // console.log("SimIndex: ", simIndex);
+      setSimIndex(simIndex);
 
       stepPass.end();
     }
@@ -389,6 +394,21 @@ export async function initWebGPU(
       cursorQueryPass.end();
     }
 
+    if (frameIdx % 30 == 0) {
+      const cursorQueryPass = encoder.beginComputePass({
+        label: "Total Query Pass",
+      });
+      cursorQueryPass.setPipeline(bindings.piplines.totalQueryPipeline);
+      cursorQueryPass.setBindGroup(
+        0,
+        aToB
+          ? bindings.bindGroups.cursorQueryBG_B
+          : bindings.bindGroups.cursorQueryBG_A
+      );
+      cursorQueryPass.dispatchWorkgroups(1, 1, 1);
+      cursorQueryPass.end();
+    }
+
     // Render: show the buffer we just wrote
     renderPassDesc.colorAttachments[0].view = context
       .getCurrentTexture()
@@ -431,20 +451,31 @@ export async function initWebGPU(
       const nz = dv.getFloat32(24, true); // @24
       const fAmount = dv.getFloat32(28, true); // @32
       // _pad0 lives at 48.. (ignored)
+      const fluidTotal = dv.getFloat32(48, true); // @48
+      const anitFluidTotal = dv.getFloat32(52, true); // @52
 
-      const cursorQuery = { height, normal: { x: nx, y: ny, z: nz }, fAmount };
+      const cursorQuery = {
+        height,
+        normal: { x: nx, y: ny, z: nz },
+        fAmount,
+        fluidTotal,
+        anitFluidTotal,
+      };
       setCursorQuery(cursorQuery);
 
       cursorQueryReadback.unmap();
     }
 
+    // if (input.mouseMoved) {
+    //   input = { ...getInput(), mouseMoved: false };
+    //   if (frameIdx % 20 == 0)
+    //     input = { ...input, totalSimulationSteps: simIndex };
+    //   setInput(input);
+    // }
+
     updateTerrainTexture = false;
     updateShadowTexture = false;
     updateNormals = false;
-
-    if (input.mouseMoved) input = { ...input, mouseMoved: false };
-
-    if (input.mouseMoved || updateShadowTexture) setInput(input);
 
     //console.log(input.visibleRect);
 
@@ -473,14 +504,11 @@ export async function initWebGPU(
   };
   canvas.__wgpuCleanup = cleanup;
 
-  console.log("Init canvas");
-
   // Also return cleanup so caller can manually stop if needed
 
   const handle = {
     cleanup,
-    // updateInputBuffer,
-    frame,
+    resetMap,
   };
 
   return handle;

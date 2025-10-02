@@ -6,8 +6,7 @@ import type { Dispatch, SetStateAction } from "react";
 
 export interface WebGPUHandle {
   cleanup: () => void;
-  // updateInputBuffer: (newInput: Input) => void;
-  frame: () => void;
+  resetMap: () => void;
   // add more methods as your JS returns them
 }
 
@@ -17,5 +16,6 @@ export function initWebGPU(
   noiseSettings: NoiseUISettings,
   getInput: () => Input,
   setInput: Dispatch<SetStateAction<Input>>,
-  setCursorQuery: Dispatch<SetStateAction<CursorQuery>>
+  setCursorQuery: Dispatch<SetStateAction<CursorQuery>>,
+  setSimIndex: Dispatch<SetStateAction<number>>
 ): Promise<WebGPUHandle>;

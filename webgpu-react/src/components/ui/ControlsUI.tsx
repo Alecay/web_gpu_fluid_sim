@@ -45,6 +45,9 @@ export default function ControlsUI() {
               <K>F11</K> — Toggle Fullscreen
             </div>
             <div>
+              <K>F9</K> — Hide Controls
+            </div>
+            <div>
               <K>W</K>
               <K>A</K>
               <K>S</K>
@@ -54,13 +57,22 @@ export default function ControlsUI() {
               <K>↓</K> — Pan Camera
             </div>
             <div>
-              <K>Wheel</K> — Zoom
+              <K>ScrollWheel</K> — Zoom
             </div>
             <div>
-              <K>Shift</K> + <K>Wheel</K> — Change Brush Radius
+              <K>Shift</K> + <K>ScrollWheel</K> — Change Brush Radius
             </div>
             <div>
               <K>LMB</K>/<K>RMB</K> — (Paint / Remove) Fluid
+            </div>
+            <div>
+              <K>Spacebar</K> — Toggle Pause
+            </div>
+            <div>
+              <K>Tab</K> / <K>Shift</K>+<K>Tab</K> — Increase / Decrease Speed
+            </div>
+            <div>
+              <K>C</K> — Reset Map
             </div>
           </div>
         </Card.Body>

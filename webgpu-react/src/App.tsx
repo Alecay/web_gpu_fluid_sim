@@ -17,7 +17,11 @@ import { CursorQuery, DefaultCursorQuery } from "./interfaces/CursorQuery";
 import CanvasUI from "./components/ui/CanvasUI";
 import { WebGPUHandle } from "./webgpu/initWebGPU";
 import { VisibleRect } from "./interfaces/VisibleRect";
-import { Speed } from "./components/ui/TimeControlsGroup";
+import {
+  nextSpeed,
+  previousSpeed,
+  Speed,
+} from "./components/ui/TimeControlsGroup";
 
 const isEditableTarget = (t: EventTarget | null) => {
   const el = t as HTMLElement | null;
@@ -59,6 +63,8 @@ export default function App() {
   // Game State
   const [paused, setPaused] = React.useState(false);
   const [speed, setSpeed] = React.useState<Speed>(1);
+  const [simIndex, setSimIndex] = useState(0);
+  const [showControlsUI, setShowControlsUI] = useState(true);
 
   const [input, setInput] = useState<Input>(DefaultInput);
   const inputRef = useRef(input);
@@ -197,13 +203,64 @@ export default function App() {
         e.preventDefault();
       }
 
-      if (e.code == "Space") {
-        setInput({
-          ...input,
-          simulationSubSteps: !paused ? 0 : Math.ceil(4 * speed),
+      const togglePause = () => {
+        setPaused((p) => {
+          let np = !p;
+          setInput({
+            ...input,
+            simulationSubSteps: np ? 0 : Math.ceil(4 * speed),
+          });
+          return np;
         });
-        setPaused((p) => !p);
         e.preventDefault();
+      };
+
+      const setNextSpeed = () => {
+        setSpeed((s: Speed) => {
+          let ns = nextSpeed(s, false);
+          setInput((i) => ({
+            ...i,
+            simulationSubSteps: paused ? 0 : Math.ceil(4 * ns),
+          }));
+          return ns;
+        });
+        e.preventDefault();
+      };
+
+      const setPreviousSpeed = () => {
+        setSpeed((s: Speed) => {
+          let ns = previousSpeed(s, false);
+          setInput((i) => ({
+            ...i,
+            simulationSubSteps: paused ? 0 : Math.ceil(4 * ns),
+          }));
+          return ns;
+        });
+        e.preventDefault();
+      };
+
+      if (e.code == "Space") {
+        // Toggle Pause
+        togglePause();
+      } else if (e.code == "Tab") {
+        if (paused) {
+          // Toggle Pause
+          togglePause();
+        } else if (e.shiftKey) {
+          setPreviousSpeed();
+        } else {
+          setNextSpeed();
+        }
+
+        e.preventDefault();
+      }
+      // Toggle Controls UI
+      else if (e.code == "F9") {
+        setShowControlsUI((p) => !p);
+      }
+      // Toggle Controls UI
+      else if (e.code == "KeyC") {
+        webHandleRef.current?.resetMap();
       }
     };
 
@@ -401,7 +458,17 @@ export default function App() {
       canvasRef.current?.removeEventListener("wheel", onMouseScroll);
       window.removeEventListener("resize", resize);
     };
-  }, [canvasSize.width, canvasSize.height, canvasScale]);
+  }, [
+    canvasSize.width,
+    canvasSize.height,
+    canvasScale,
+    paused,
+    setInput,
+    setPaused,
+    speed,
+    setSpeed,
+    setShowControlsUI,
+  ]);
 
   const lastVisRef = useRef<VisibleRect | null>(null);
 
@@ -498,6 +565,7 @@ export default function App() {
             setInput={setInput}
             setWebGPUHandle={setWebHandle}
             setCursorQuery={setCursorQuery}
+            setSimIndex={setSimIndex}
           />
         </div>
 
@@ -514,6 +582,8 @@ export default function App() {
           setPaused={setPaused}
           speed={speed}
           setSpeed={setSpeed}
+          simIndex={simIndex}
+          showControlsUI={showControlsUI}
         />
       </div>
     </>

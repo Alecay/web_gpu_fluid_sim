@@ -38,6 +38,11 @@ struct TerrainParams {
 
 struct CursorQuery
 {
-    // Current cell
-    cell : CellData
+    // Current cell under the cursor
+    cell           : CellData, // size 48, align 16
+    // Total fluid on the entire map
+    fluidTotal     : f32,      // starts as 48
+    // Total antiFluid on the entire map
+    anitFluidTotal : f32,      // starts as 52
 };
+// total size = 56 -> rounded to 64 bytes
