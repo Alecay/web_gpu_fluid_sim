@@ -13,6 +13,8 @@ fn fs(@builtin(position) frag_pos: vec4f) -> @location(0) vec4f {
 
     let terrainColor = outputTex[idx(x,y)];
     let shadowColor = outputTex[idx(x,y) + uView.size.x * uView.size.y];
+    let fluidColor = outputTex[idx(x,y) + uView.size.x * uView.size.y * 2];
+    let debugColor = outputTex[idx(x,y) + uView.size.x * uView.size.y * 3];
 
     let mouseWidth  = 2.0;
     let inOuter = inside_circle(vec2<u32>(x,y), uInput.mousePos, uInput.mouseRadius);
@@ -32,7 +34,9 @@ fn fs(@builtin(position) frag_pos: vec4f) -> @location(0) vec4f {
     }
 
     var combinedColor = over_rgba(terrainColor, shadowColor);
+    combinedColor = over_rgba(combinedColor, fluidColor);
     combinedColor = over_rgba(combinedColor, cursorOutline);
+    combinedColor = over_rgba(combinedColor, debugColor);
 
     return combinedColor;
 }

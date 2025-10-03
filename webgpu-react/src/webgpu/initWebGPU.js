@@ -177,7 +177,7 @@ export async function initWebGPU(
     );
   }
 
-  const outputTexLayers = 3;
+  const outputTexLayers = 4;
   const outputTexSize =
     noiseSettings.width * noiseSettings.height * 4 * 4 * outputTexLayers;
   // Create output texture buffer
@@ -420,6 +420,42 @@ export async function initWebGPU(
       // console.log("Updated Shadow Texture");
 
       input = { ...input, visibleRectChanged: false };
+    }
+
+    if (updateShadowTexture || updateTerrainTexture) {
+      const fluidRenderPass = encoder.beginComputePass({
+        label: "Fluid Texture Compute Pass",
+      });
+      fluidRenderPass.setPipeline(
+        bindings.piplines.fluidTextureComputePipeline
+      );
+      fluidRenderPass.setBindGroup(
+        0,
+        aToB
+          ? bindings.bindGroups.unifiedComputeBG_A
+          : bindings.bindGroups.unifiedComputeBG_B
+      );
+      fluidRenderPass.dispatchWorkgroups(dispatchX, dispatchY, 1);
+      fluidRenderPass.end();
+
+      input = { ...input, visibleRectChanged: false };
+    }
+
+    {
+      const debugRenderPass = encoder.beginComputePass({
+        label: "Debug Texture Compute Pass",
+      });
+      debugRenderPass.setPipeline(
+        bindings.piplines.debugTextureComputePipeline
+      );
+      debugRenderPass.setBindGroup(
+        0,
+        aToB
+          ? bindings.bindGroups.unifiedComputeBG_A
+          : bindings.bindGroups.unifiedComputeBG_B
+      );
+      debugRenderPass.dispatchWorkgroups(dispatchX, dispatchY, 1);
+      debugRenderPass.end();
     }
 
     // query

@@ -1,10 +1,10 @@
-//{Structs}
+//{structs}
 
-//{Helpers}
+//{helpers}
 
-//{Flow Helpers}
+//{flow_helpers}
 
-//{Chunk Helpers}
+//{chunk_helpers}
 
 @group(0) @binding(0) var<uniform> uView : View;
 @group(0) @binding(1) var<uniform> uInput : Input;
@@ -21,9 +21,9 @@
 // ===================== RENDER ========================
 // =====================================================
 
-//{Vertex}
+//{vertex}
 
-//{Fragment}
+//{fragment}
 
 // =====================================================
 // ===================== COMPUTE =======================
@@ -34,6 +34,10 @@
 //{terrain_render_compute}
 
 //{shadow_render_compute}
+
+//{fluid_render_compute}
+
+//{debug_render_compute}
 
 //{step_compute}
 

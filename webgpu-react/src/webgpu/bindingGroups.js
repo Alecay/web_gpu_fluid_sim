@@ -199,6 +199,24 @@ export function getBindings(device, module, format, buffers) {
     compute: { module, entryPoint: "shadow_render" },
   });
 
+  const fluidTextureComputePipeline = device.createComputePipeline({
+    label: "Fluid Texture Compute Pipeline",
+    layout: device.createPipelineLayout({
+      bindGroupLayouts: [unifiedComputeBGL],
+      label: "Fluid Texture Compute Pipeline Layout",
+    }),
+    compute: { module, entryPoint: "fluid_render" },
+  });
+
+  const debugTextureComputePipeline = device.createComputePipeline({
+    label: "Debug Texture Compute Pipeline",
+    layout: device.createPipelineLayout({
+      bindGroupLayouts: [unifiedComputeBGL],
+      label: "Debug Texture Compute Pipeline Layout",
+    }),
+    compute: { module, entryPoint: "debug_render" },
+  });
+
   const stepComputePipeline = device.createComputePipeline({
     label: "Step Compute Pipeline",
     layout: device.createPipelineLayout({
@@ -238,6 +256,8 @@ export function getBindings(device, module, format, buffers) {
       chunkDataPipeline,
       terrainTextureComputePipeline,
       shadowTextureComputePipeline,
+      fluidTextureComputePipeline,
+      debugTextureComputePipeline,
       stepComputePipeline,
     },
     bindGroups: {

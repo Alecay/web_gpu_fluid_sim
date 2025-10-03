@@ -49,26 +49,6 @@ fn shadow_render(@builtin(global_invocation_id) gid : vec3<u32>) {
         finalColor = over_rgba(finalColor, normalOutline);
     }
 
-    let waterLevel = 50.0;
-    let waterAMax = 0.75;
-    let waterAMin = 0.3;
-    let waterRgb = vec3(0.059, 0.145, 0.478);//0.384, 0.651, 0.663
-    let waterHeight = cellFAmount(coord);//waterLevel - currentHeight;
-    let waterA = clamp(waterHeight / 50.0 * waterAMax, waterAMin, waterAMax);
-
-    let antiWaterRgb = vec3(1.0, 1.0, 1.0);//0.384, 0.651, 0.663
-    let antiWaterA = clamp(waterHeight / -50.0 * waterAMax, waterAMin, waterAMax);
-
-    var waterColor = select(vec4(waterRgb, waterA), vec4(antiWaterRgb, antiWaterA), waterHeight < 0);
-    if(abs(waterHeight) > 0.0)
-    {
-        var waterOutline = getFluidOutlineColor(coord, lightDir, shadeColor, highlightColor, castedShadowColor.a < 1e-4);
-        waterColor = over_rgba(waterColor, waterOutline);
-        finalColor = over_rgba(finalColor, waterColor);
-        //castedShadowColor = vec4f(castedShadowColor.rgb, castedShadowColor.a * 0.1);
-    }
-    finalColor = over_rgba(finalColor, castedShadowColor);
-
     let showChunkDebug = false;
     let chunkSize = 16u;
     var chunkDebugColor = vec4f(0.0, 0.0, 0.0, 0.0);
