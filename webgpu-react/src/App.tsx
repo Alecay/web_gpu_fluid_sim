@@ -65,6 +65,7 @@ export default function App() {
   const [speed, setSpeed] = React.useState<Speed>(1);
   const [simIndex, setSimIndex] = useState(0);
   const [showControlsUI, setShowControlsUI] = useState(true);
+  const [showDebugUI, setShowDebugUI] = useState(true);
 
   const [input, setInput] = useState<Input>(DefaultInput);
   const inputRef = useRef(input);
@@ -257,6 +258,12 @@ export default function App() {
       // Toggle Controls UI
       else if (e.code == "F9") {
         setShowControlsUI((p) => !p);
+        e.preventDefault();
+      }
+      // Toggle Controls UI
+      else if (e.code == "F8") {
+        setShowDebugUI((p) => !p);
+        e.preventDefault();
       }
       // Toggle Controls UI
       else if (e.code == "KeyC") {
@@ -584,6 +591,7 @@ export default function App() {
           setSpeed={setSpeed}
           simIndex={simIndex}
           showControlsUI={showControlsUI}
+          showDebugUI={showDebugUI}
         />
       </div>
     </>

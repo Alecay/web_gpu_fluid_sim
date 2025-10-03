@@ -11,6 +11,8 @@ import stepComputeWGSL from "../shaders/step_compute.wgsl?raw";
 import cursorQueryWGSL from "../shaders/cursor_query.wgsl?raw";
 import totalQueryWGSL from "../shaders/total_query.wgsl?raw";
 import shaderOutlineWGSL from "../shaders/shader_outline.wgsl?raw";
+import chunkHelpersWGSL from "../shaders/chunk_helpers.wgsl?raw";
+import chunkDataCalcWGSL from "../shaders/chunk_data_calc.wgsl?raw";
 
 export function getShaderText() {
   let shaderCode = shaderOutlineWGSL;
@@ -32,6 +34,9 @@ export function getShaderText() {
   shaderCode = shaderCode.replace("//{step_compute}", stepComputeWGSL);
   shaderCode = shaderCode.replace("//{cursor_query}", cursorQueryWGSL);
   shaderCode = shaderCode.replace("//{total_query}", totalQueryWGSL);
+
+  shaderCode = shaderCode.replace("//{chunk_data_calc}", chunkDataCalcWGSL);
+  shaderCode = shaderCode.replace("//{Chunk Helpers}", chunkHelpersWGSL);
 
   return shaderCode;
 }

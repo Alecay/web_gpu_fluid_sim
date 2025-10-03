@@ -1,6 +1,6 @@
 import { CursorQuery } from "@/interfaces/CursorQuery";
 import { Input } from "@/interfaces/Input";
-import { Tabs, Tab } from "react-bootstrap";
+import { Tabs, Tab, Card } from "react-bootstrap";
 import HeightDisplay from "./HeightDisplay";
 import MapCoordDisplay from "./MapCoordDisplay";
 import HotkeyModal from "./HotkeyModal";
@@ -22,6 +22,7 @@ interface CanvasUIProps {
   setSpeed: (value: React.SetStateAction<Speed>) => void;
   simIndex: number;
   showControlsUI: boolean;
+  showDebugUI: boolean;
 }
 
 export default function CanvasUI({
@@ -36,6 +37,7 @@ export default function CanvasUI({
   setSpeed,
   simIndex,
   showControlsUI,
+  showDebugUI,
 }: CanvasUIProps) {
   const [fpsValue, setFpsValue] = useState(0);
   const [cpuMs, setCPUMs] = useState(0);
@@ -90,26 +92,54 @@ export default function CanvasUI({
           });
         }}
       />
-      <div style={{ position: "absolute", top: "5px", left: "5px" }}>
-        {`FPS: ${fpsValue} (Frame Duration: ${frameDurStr} ms) (Frames: ${fmt.format(
-          frameCount
-        )})`}
-      </div>
-      <div style={{ position: "absolute", top: "30px", left: "5px" }}>
-        {`(Simulation Steps: ${fmt.format(simIndex)})`}
-      </div>
-      <div style={{ position: "absolute", top: "55px", left: "5px" }}>
-        {`(Total Fluid: ${fmt.format(
-          Math.ceil(cursorQuery.fluidTotal)
-        )}) (Total Anti Fluid: ${fmt.format(
-          Math.ceil(cursorQuery.anitFluidTotal)
-        )})`}
-      </div>
-      <div style={{ position: "absolute", top: "80px", left: "5px" }}>
-        {`(Total Combined Fluid: ${fmt.format(
-          Math.ceil(cursorQuery.fluidTotal - cursorQuery.anitFluidTotal)
-        )})`}
-      </div>
+      {showDebugUI && (
+        <div
+          style={{
+            position: "absolute",
+            top: "5px",
+            left: "5px",
+          }}
+        >
+          <Card
+            className={`bg-dark text-light shadow `}
+            style={{
+              width: 450,
+              pointerEvents: "none",
+              borderRadius: 12,
+              fontSize: 18,
+              //   ...style,
+            }}
+          >
+            <Card.Body style={{ padding: "0.9rem 1rem" }}>
+              <Card.Title style={{ fontSize: 16, marginBottom: 8 }}>
+                Debug Stats
+              </Card.Title>
+              <div>
+                {`FPS: ${fpsValue} (Frame Duration: ${frameDurStr} ms) (Frames: ${fmt.format(
+                  frameCount
+                )})`}
+              </div>
+              <div>{`Simulation Steps: ${fmt.format(simIndex)}`}</div>
+              <div>
+                {`Total Fluid: ${fmt.format(
+                  Math.ceil(cursorQuery.fluidTotal)
+                )}`}
+              </div>
+              <div>
+                {`Total Anti Fluid: ${fmt.format(
+                  Math.ceil(cursorQuery.anitFluidTotal)
+                )}`}
+              </div>
+              <div>
+                {`Total Combined Fluid: ${fmt.format(
+                  Math.ceil(cursorQuery.fluidTotal - cursorQuery.anitFluidTotal)
+                )}`}
+              </div>
+            </Card.Body>
+          </Card>
+        </div>
+      )}
+
       {/* <div
         style={{
           position: "absolute",

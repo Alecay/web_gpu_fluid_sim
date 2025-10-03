@@ -4,6 +4,8 @@
 
 //{Flow Helpers}
 
+//{Chunk Helpers}
+
 @group(0) @binding(0) var<uniform> uView : View;
 @group(0) @binding(1) var<uniform> uInput : Input;
 @group(0) @binding(2) var<uniform> uTerrain : TerrainParams;
@@ -13,6 +15,7 @@
 @group(0) @binding(6) var<storage, read_write> nextCells : array<CellData>;
 @group(0) @binding(7) var<storage, read>       randomDirectionsBuffer : array<u32>;
 @group(0) @binding(8) var<storage, read_write> cursorQuery : CursorQuery;
+@group(0) @binding(9) var<storage, read_write> chunkData : array<ChunkData>;
 
 // =====================================================
 // ===================== RENDER ========================
@@ -37,3 +40,5 @@
 //{cursor_query}
 
 //{total_query}
+
+//{chunk_data_calc}

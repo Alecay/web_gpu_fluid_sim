@@ -46,3 +46,11 @@ struct CursorQuery
     anitFluidTotal : f32,      // starts as 52
 };
 // total size = 56 -> rounded to 64 bytes
+
+struct ChunkData // total of 16 bytes
+{
+  fluidTotal          : f32,      // The total fluid in this chunk @ 0
+  anitFluidTotal      : f32,      // The total anti fluid in this chunk @ 4
+  deepestFluid        : u32,      // The index of the deepest fluid in this chunk @ 8
+  deepestAntiFluid    : u32,      // The index of the deepest anti fluid in this chunk @ 12
+};

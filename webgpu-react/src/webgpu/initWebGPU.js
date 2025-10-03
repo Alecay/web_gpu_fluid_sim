@@ -117,6 +117,49 @@ export async function initWebGPU(
   );
 
   /**
+   * Get the chunk index (which chunk a cell belongs to).
+   * @param {[number, number]} cellPos - The cell position [x, y]
+   * @param {number} chunkSize - The size of one chunk (square)
+   * @returns {[number, number]} The chunk index [chunkX, chunkY]
+   */
+  function getChunkPos(cellPos, chunkSize) {
+    const [x, y] = cellPos;
+    return [Math.floor(x / chunkSize), Math.floor(y / chunkSize)];
+  }
+
+  /**
+   * Get the number of chunks needed to cover a width × height grid.
+   * @param {number} width - The total width in cells
+   * @param {number} height - The total height in cells
+   * @param {number} chunkSize - The size of one chunk (square)
+   * @returns {[number, number]} Number of chunks along X and Y [chunksX, chunksY]
+   */
+  function getNumChunks(width, height, chunkSize) {
+    const chunksX = Math.ceil(width / chunkSize);
+    const chunksY = Math.ceil(height / chunkSize);
+    return [chunksX, chunksY];
+  }
+
+  const chunkSize = 16;
+  const [chunksX, chunksY] = getNumChunks(
+    noiseSettings.width,
+    noiseSettings.height,
+    chunkSize
+  );
+
+  const chunkDataBuffer = device.createBuffer({
+    label: "Chunk Data",
+    size: 16 * chunksX * chunksY,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+  });
+
+  device.queue.writeBuffer(
+    chunkDataBuffer,
+    0,
+    new Float32Array(4 * chunksX * chunksY)
+  );
+
+  /**
    * @param {Input} newInput
    * @returns {Promise<null>}
    */
@@ -233,6 +276,7 @@ export async function initWebGPU(
     inputUniformBuffer,
     outputTextureBuffer,
     cursorQueryBuffer,
+    chunkDataBuffer,
     randomFlowDirectionsBuffer,
   });
 
@@ -292,8 +336,8 @@ export async function initWebGPU(
         stepPass.setBindGroup(
           0,
           aToB
-            ? bindings.bindGroups.computeBG_AtoB
-            : bindings.bindGroups.computeBG_BtoA
+            ? bindings.bindGroups.unifiedComputeBG_A
+            : bindings.bindGroups.unifiedComputeBG_B
         );
         stepPass.dispatchWorkgroups(dispatchX, dispatchY, 1);
         aToB = !aToB;
@@ -329,8 +373,8 @@ export async function initWebGPU(
       normalPass.setBindGroup(
         0,
         aToB
-          ? bindings.bindGroups.normalComputeBG_B
-          : bindings.bindGroups.normalComputeBG_A
+          ? bindings.bindGroups.unifiedComputeBG_A
+          : bindings.bindGroups.unifiedComputeBG_B
       );
       normalPass.dispatchWorkgroups(dispatchX, dispatchY, 1);
       normalPass.end();
@@ -349,8 +393,8 @@ export async function initWebGPU(
       terrainRenderPass.setBindGroup(
         0,
         aToB
-          ? bindings.bindGroups.outputTextureBG_showB
-          : bindings.bindGroups.outputTextureBG_showA
+          ? bindings.bindGroups.unifiedComputeBG_A
+          : bindings.bindGroups.unifiedComputeBG_B
       );
       terrainRenderPass.dispatchWorkgroups(dispatchX, dispatchY, 1);
       terrainRenderPass.end();
@@ -368,8 +412,8 @@ export async function initWebGPU(
       shadowRenderPass.setBindGroup(
         0,
         aToB
-          ? bindings.bindGroups.outputTextureBG_showB
-          : bindings.bindGroups.outputTextureBG_showA
+          ? bindings.bindGroups.unifiedComputeBG_A
+          : bindings.bindGroups.unifiedComputeBG_B
       );
       shadowRenderPass.dispatchWorkgroups(dispatchX, dispatchY, 1);
       shadowRenderPass.end();
@@ -387,26 +431,41 @@ export async function initWebGPU(
       cursorQueryPass.setBindGroup(
         0,
         aToB
-          ? bindings.bindGroups.cursorQueryBG_B
-          : bindings.bindGroups.cursorQueryBG_A
+          ? bindings.bindGroups.unifiedComputeBG_A
+          : bindings.bindGroups.unifiedComputeBG_B
       );
       cursorQueryPass.dispatchWorkgroups(1, 1, 1);
       cursorQueryPass.end();
     }
 
-    if (frameIdx % 30 == 0) {
-      const cursorQueryPass = encoder.beginComputePass({
+    if (frameIdx % 30 == 15) {
+      const totalQueryPass = encoder.beginComputePass({
         label: "Total Query Pass",
       });
-      cursorQueryPass.setPipeline(bindings.piplines.totalQueryPipeline);
-      cursorQueryPass.setBindGroup(
+      totalQueryPass.setPipeline(bindings.piplines.totalQueryPipeline);
+      totalQueryPass.setBindGroup(
         0,
         aToB
-          ? bindings.bindGroups.cursorQueryBG_B
-          : bindings.bindGroups.cursorQueryBG_A
+          ? bindings.bindGroups.unifiedComputeBG_A
+          : bindings.bindGroups.unifiedComputeBG_B
       );
-      cursorQueryPass.dispatchWorkgroups(1, 1, 1);
-      cursorQueryPass.end();
+      totalQueryPass.dispatchWorkgroups(1, 1, 1);
+      totalQueryPass.end();
+    }
+
+    {
+      const chunkDataPass = encoder.beginComputePass({
+        label: "Chunk Data Pass",
+      });
+      chunkDataPass.setPipeline(bindings.piplines.chunkDataPipeline);
+      chunkDataPass.setBindGroup(
+        0,
+        aToB
+          ? bindings.bindGroups.unifiedComputeBG_A
+          : bindings.bindGroups.unifiedComputeBG_B
+      );
+      chunkDataPass.dispatchWorkgroups(chunksX, chunksY, 1);
+      chunkDataPass.end();
     }
 
     // Render: show the buffer we just wrote

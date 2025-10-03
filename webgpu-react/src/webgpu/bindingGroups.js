@@ -3,178 +3,112 @@ export function getBindings(device, module, format, buffers) {
     uView: {
       binding: 0,
       type: "uniform",
+      buffer: buffers.viewUniformBuffer,
     },
     uInput: {
       binding: 1,
       type: "uniform",
+      buffer: buffers.inputUniformBuffer,
     },
     uTerrain: {
       binding: 2,
       type: "uniform",
+      buffer: buffers.terrainBuffer,
     },
     currentCells: {
       binding: 3,
       type: "storage",
+      buffer: buffers.prevCellsBuffer,
     },
     terrainColors: {
       binding: 4,
       type: "read-only-storage",
+      buffer: buffers.terrainColorsBuffer,
     },
     outputTex: {
       binding: 5,
       type: "storage",
+      buffer: buffers.outputTextureBuffer,
     },
     nextCells: {
       binding: 6,
       type: "storage",
+      buffer: buffers.nextCellsBuffer,
     },
     randomDirections: {
       binding: 7,
       type: "read-only-storage",
+      buffer: buffers.randomFlowDirectionsBuffer,
     },
     cursorQuery: {
       binding: 8,
       type: "storage",
+      buffer: buffers.cursorQueryBuffer,
+    },
+    chunkData: {
+      binding: 9,
+      type: "storage",
+      buffer: buffers.chunkDataBuffer,
     },
   };
 
-  const stepComputeBGL = device.createBindGroupLayout({
-    label: "Step Compute BGL",
-    entries: [
-      {
-        binding: bufferSettings.uView.binding,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: bufferSettings.uView.type },
-      },
-      {
-        binding: bufferSettings.uInput.binding,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: bufferSettings.uInput.type },
-      },
-      {
-        binding: bufferSettings.uTerrain.binding,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: bufferSettings.uTerrain.type },
-      },
-      {
-        binding: bufferSettings.currentCells.binding,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: bufferSettings.currentCells.type },
-      },
-      {
-        binding: bufferSettings.nextCells.binding,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: bufferSettings.nextCells.type },
-      },
-      {
-        binding: bufferSettings.randomDirections.binding,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: bufferSettings.randomDirections.type },
-      },
-    ],
+  const unifiedComputeBGL = device.createBindGroupLayout({
+    label: "Unified Compute BGL",
+    entries: Object.keys(bufferSettings).map((key) => ({
+      binding: bufferSettings[key].binding,
+      visibility: GPUShaderStage.COMPUTE,
+      buffer: { type: bufferSettings[key].type },
+    })),
   });
 
-  const normalComputeBGL = device.createBindGroupLayout({
-    label: "Normal Compute BGL",
-    entries: [
-      {
-        binding: 0,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: "uniform" },
-      },
-      {
-        binding: 1,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: "uniform" },
-      },
-      {
-        binding: 2,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: "uniform" },
-      },
-      {
-        binding: 3,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: "storage" },
-      },
-    ],
+  const unifiedComputeBG_A = device.createBindGroup({
+    label: "Unified Compute BG A",
+    layout: unifiedComputeBGL,
+    entries: Object.keys(bufferSettings).map((key) => {
+      if (key === "currentCells") {
+        return {
+          binding: bufferSettings.currentCells.binding,
+          resource: { buffer: buffers.prevCellsBuffer },
+        };
+      }
+
+      if (key === "nextCells") {
+        return {
+          binding: bufferSettings.nextCells.binding,
+          resource: { buffer: buffers.nextCellsBuffer },
+        };
+      }
+
+      return {
+        binding: bufferSettings[key].binding,
+        resource: { buffer: bufferSettings[key].buffer },
+      };
+    }),
   });
 
-  const outputTextureComputeBGL = device.createBindGroupLayout({
-    label: "Output Texture Compute BGL",
-    entries: [
-      {
-        binding: bufferSettings.uView.binding,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: bufferSettings.uView.type },
-      },
-      {
-        binding: bufferSettings.uInput.binding,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: bufferSettings.uInput.type },
-      },
-      {
-        binding: bufferSettings.uTerrain.binding,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: bufferSettings.uTerrain.type },
-      },
-      {
-        binding: bufferSettings.currentCells.binding,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: bufferSettings.currentCells.type },
-      },
-      {
-        binding: bufferSettings.terrainColors.binding,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: bufferSettings.terrainColors.type },
-      },
-      {
-        binding: bufferSettings.outputTex.binding,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: bufferSettings.outputTex.type },
-      },
-    ],
-  });
+  const unifiedComputeBG_B = device.createBindGroup({
+    label: "Unified Compute BG show B",
+    layout: unifiedComputeBGL,
+    entries: Object.keys(bufferSettings).map((key) => {
+      if (key === "currentCells") {
+        return {
+          binding: bufferSettings.currentCells.binding,
+          resource: { buffer: buffers.nextCellsBuffer },
+        };
+      }
 
-  const cursorQueryBGL = device.createBindGroupLayout({
-    label: "Cursor Query BGL",
-    entries: [
-      {
-        binding: bufferSettings.uView.binding,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: bufferSettings.uView.type },
-      },
-      {
-        binding: bufferSettings.uInput.binding,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: bufferSettings.uInput.type },
-      },
-      {
-        binding: bufferSettings.uTerrain.binding,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: bufferSettings.uTerrain.type },
-      },
-      {
-        binding: bufferSettings.currentCells.binding,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: bufferSettings.currentCells.type },
-      },
-      {
-        binding: bufferSettings.terrainColors.binding,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: bufferSettings.terrainColors.type },
-      },
-      {
-        binding: bufferSettings.outputTex.binding,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: bufferSettings.outputTex.type },
-      },
-      {
-        binding: bufferSettings.cursorQuery.binding,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: bufferSettings.cursorQuery.type },
-      },
-    ],
+      if (key === "nextCells") {
+        return {
+          binding: bufferSettings.nextCells.binding,
+          resource: { buffer: buffers.prevCellsBuffer },
+        };
+      }
+
+      return {
+        binding: bufferSettings[key].binding,
+        resource: { buffer: bufferSettings[key].buffer },
+      };
+    }),
   });
 
   // Render: 0=uniform, 1=current(read) for fragment
@@ -214,7 +148,7 @@ export function getBindings(device, module, format, buffers) {
   const normalComputePipeline = device.createComputePipeline({
     label: "Normal Compute Pipeline",
     layout: device.createPipelineLayout({
-      bindGroupLayouts: [normalComputeBGL],
+      bindGroupLayouts: [unifiedComputeBGL],
       label: "Normal Compute Pipeline Layout",
     }),
     compute: { module, entryPoint: "calc_normals" },
@@ -223,7 +157,7 @@ export function getBindings(device, module, format, buffers) {
   const cursorQueryPipeline = device.createComputePipeline({
     label: "Cursor Query Pipeline",
     layout: device.createPipelineLayout({
-      bindGroupLayouts: [cursorQueryBGL],
+      bindGroupLayouts: [unifiedComputeBGL],
       label: "Cursor Query Pipeline Layout",
     }),
     compute: { module, entryPoint: "cursor_query" },
@@ -232,16 +166,25 @@ export function getBindings(device, module, format, buffers) {
   const totalQueryPipeline = device.createComputePipeline({
     label: "Total Query Pipeline",
     layout: device.createPipelineLayout({
-      bindGroupLayouts: [cursorQueryBGL],
+      bindGroupLayouts: [unifiedComputeBGL],
       label: "Total Query Pipeline Layout",
     }),
     compute: { module, entryPoint: "total_query" },
   });
 
+  const chunkDataPipeline = device.createComputePipeline({
+    label: "Chunk Data Pipeline",
+    layout: device.createPipelineLayout({
+      bindGroupLayouts: [unifiedComputeBGL],
+      label: "Chunk Data Pipeline Layout",
+    }),
+    compute: { module, entryPoint: "chunk_data_calc" },
+  });
+
   const terrainTextureComputePipeline = device.createComputePipeline({
     label: "Terrain Texture Compute Pipeline",
     layout: device.createPipelineLayout({
-      bindGroupLayouts: [outputTextureComputeBGL],
+      bindGroupLayouts: [unifiedComputeBGL],
       label: "Terrain Texture Compute Pipeline Layout",
     }),
     compute: { module, entryPoint: "terrain_render" },
@@ -250,7 +193,7 @@ export function getBindings(device, module, format, buffers) {
   const shadowTextureComputePipeline = device.createComputePipeline({
     label: "Shadow Texture Compute Pipeline",
     layout: device.createPipelineLayout({
-      bindGroupLayouts: [outputTextureComputeBGL],
+      bindGroupLayouts: [unifiedComputeBGL],
       label: "Shadow Texture Compute Pipeline Layout",
     }),
     compute: { module, entryPoint: "shadow_render" },
@@ -259,252 +202,13 @@ export function getBindings(device, module, format, buffers) {
   const stepComputePipeline = device.createComputePipeline({
     label: "Step Compute Pipeline",
     layout: device.createPipelineLayout({
-      bindGroupLayouts: [stepComputeBGL],
+      bindGroupLayouts: [unifiedComputeBGL],
       label: "Step Compute Pipeline Layout",
     }),
     compute: { module, entryPoint: "step" },
   });
 
   // ----- Bind groups (prebuild both directions) -----
-  const computeBG_AtoB = device.createBindGroup({
-    label: "Step Compute BG A→B",
-    layout: stepComputeBGL,
-    entries: [
-      {
-        binding: bufferSettings.uView.binding,
-        resource: { buffer: buffers.viewUniformBuffer },
-      },
-      {
-        binding: bufferSettings.uInput.binding,
-        resource: { buffer: buffers.inputUniformBuffer },
-      },
-      {
-        binding: bufferSettings.uTerrain.binding,
-        resource: { buffer: buffers.terrainBuffer },
-      },
-      {
-        binding: bufferSettings.currentCells.binding,
-        resource: { buffer: buffers.prevCellsBuffer },
-      }, // read
-      {
-        binding: bufferSettings.nextCells.binding,
-        resource: { buffer: buffers.nextCellsBuffer },
-      }, // write
-      {
-        binding: bufferSettings.randomDirections.binding,
-        resource: { buffer: buffers.randomFlowDirectionsBuffer },
-      },
-    ],
-  });
-
-  const computeBG_BtoA = device.createBindGroup({
-    label: "Step Compute BG B→A",
-    layout: stepComputeBGL,
-    entries: [
-      {
-        binding: bufferSettings.uView.binding,
-        resource: { buffer: buffers.viewUniformBuffer },
-      },
-      {
-        binding: bufferSettings.uInput.binding,
-        resource: { buffer: buffers.inputUniformBuffer },
-      },
-      {
-        binding: bufferSettings.uTerrain.binding,
-        resource: { buffer: buffers.terrainBuffer },
-      },
-      {
-        binding: bufferSettings.currentCells.binding,
-        resource: { buffer: buffers.nextCellsBuffer },
-      }, // read
-      {
-        binding: bufferSettings.nextCells.binding,
-        resource: { buffer: buffers.prevCellsBuffer },
-      }, // write
-      {
-        binding: bufferSettings.randomDirections.binding,
-        resource: { buffer: buffers.randomFlowDirectionsBuffer },
-      },
-    ],
-  });
-
-  const normalComputeBG_A = device.createBindGroup({
-    label: "Normal Compute A",
-    layout: normalComputeBGL,
-    entries: [
-      {
-        binding: bufferSettings.uView.binding,
-        resource: { buffer: buffers.viewUniformBuffer },
-      },
-      {
-        binding: bufferSettings.uInput.binding,
-        resource: { buffer: buffers.inputUniformBuffer },
-      },
-      {
-        binding: bufferSettings.uTerrain.binding,
-        resource: { buffer: buffers.terrainBuffer },
-      },
-      {
-        binding: bufferSettings.currentCells.binding,
-        resource: { buffer: buffers.prevCellsBuffer },
-      }, // read
-    ],
-  });
-
-  const normalComputeBG_B = device.createBindGroup({
-    label: "Normal Compute B",
-    layout: normalComputeBGL,
-    entries: [
-      {
-        binding: bufferSettings.uView.binding,
-        resource: { buffer: buffers.viewUniformBuffer },
-      },
-      {
-        binding: bufferSettings.uInput.binding,
-        resource: { buffer: buffers.inputUniformBuffer },
-      },
-      {
-        binding: bufferSettings.uTerrain.binding,
-        resource: { buffer: buffers.terrainBuffer },
-      },
-      {
-        binding: bufferSettings.currentCells.binding,
-        resource: { buffer: buffers.nextCellsBuffer },
-      }, // read
-    ],
-  });
-
-  const cursorQueryBG_A = device.createBindGroup({
-    label: "Cursor Query A",
-    layout: cursorQueryBGL,
-    entries: [
-      {
-        binding: bufferSettings.uView.binding,
-        resource: { buffer: buffers.viewUniformBuffer },
-      },
-      {
-        binding: bufferSettings.uInput.binding,
-        resource: { buffer: buffers.inputUniformBuffer },
-      },
-      {
-        binding: bufferSettings.uTerrain.binding,
-        resource: { buffer: buffers.terrainBuffer },
-      },
-      {
-        binding: bufferSettings.currentCells.binding,
-        resource: { buffer: buffers.prevCellsBuffer },
-      }, // read
-      {
-        binding: bufferSettings.terrainColors.binding,
-        resource: { buffer: buffers.terrainColorsBuffer },
-      },
-      {
-        binding: bufferSettings.outputTex.binding,
-        resource: { buffer: buffers.outputTextureBuffer },
-      },
-      {
-        binding: bufferSettings.cursorQuery.binding,
-        resource: { buffer: buffers.cursorQueryBuffer },
-      },
-    ],
-  });
-
-  const cursorQueryBG_B = device.createBindGroup({
-    label: "Cursor Query B",
-    layout: cursorQueryBGL,
-    entries: [
-      {
-        binding: bufferSettings.uView.binding,
-        resource: { buffer: buffers.viewUniformBuffer },
-      },
-      {
-        binding: bufferSettings.uInput.binding,
-        resource: { buffer: buffers.inputUniformBuffer },
-      },
-      {
-        binding: bufferSettings.uTerrain.binding,
-        resource: { buffer: buffers.terrainBuffer },
-      },
-      {
-        binding: bufferSettings.currentCells.binding,
-        resource: { buffer: buffers.nextCellsBuffer },
-      }, // read
-      {
-        binding: bufferSettings.terrainColors.binding,
-        resource: { buffer: buffers.terrainColorsBuffer },
-      },
-      {
-        binding: bufferSettings.outputTex.binding,
-        resource: { buffer: buffers.outputTextureBuffer },
-      },
-      {
-        binding: bufferSettings.cursorQuery.binding,
-        resource: { buffer: buffers.cursorQueryBuffer },
-      },
-    ],
-  });
-
-  const outputTextureBG_showA = device.createBindGroup({
-    label: "Output Texture BG show A",
-    layout: outputTextureComputeBGL,
-    entries: [
-      {
-        binding: bufferSettings.uView.binding,
-        resource: { buffer: buffers.viewUniformBuffer },
-      },
-      {
-        binding: bufferSettings.uInput.binding,
-        resource: { buffer: buffers.inputUniformBuffer },
-      },
-      {
-        binding: bufferSettings.uTerrain.binding,
-        resource: { buffer: buffers.terrainBuffer },
-      },
-      {
-        binding: bufferSettings.currentCells.binding,
-        resource: { buffer: buffers.prevCellsBuffer },
-      }, // read
-      {
-        binding: bufferSettings.terrainColors.binding,
-        resource: { buffer: buffers.terrainColorsBuffer },
-      },
-      {
-        binding: bufferSettings.outputTex.binding,
-        resource: { buffer: buffers.outputTextureBuffer },
-      },
-    ],
-  });
-
-  const outputTextureBG_showB = device.createBindGroup({
-    label: "Output Texture BG show B",
-    layout: outputTextureComputeBGL,
-    entries: [
-      {
-        binding: bufferSettings.uView.binding,
-        resource: { buffer: buffers.viewUniformBuffer },
-      },
-      {
-        binding: bufferSettings.uInput.binding,
-        resource: { buffer: buffers.inputUniformBuffer },
-      },
-      {
-        binding: bufferSettings.uTerrain.binding,
-        resource: { buffer: buffers.terrainBuffer },
-      },
-      {
-        binding: bufferSettings.currentCells.binding,
-        resource: { buffer: buffers.nextCellsBuffer },
-      }, // read
-      {
-        binding: bufferSettings.terrainColors.binding,
-        resource: { buffer: buffers.terrainColorsBuffer },
-      },
-      {
-        binding: bufferSettings.outputTex.binding,
-        resource: { buffer: buffers.outputTextureBuffer },
-      },
-    ],
-  });
 
   const renderBG = device.createBindGroup({
     label: "Render BG",
@@ -531,19 +235,14 @@ export function getBindings(device, module, format, buffers) {
       normalComputePipeline,
       cursorQueryPipeline,
       totalQueryPipeline,
+      chunkDataPipeline,
       terrainTextureComputePipeline,
       shadowTextureComputePipeline,
       stepComputePipeline,
     },
     bindGroups: {
-      computeBG_AtoB,
-      computeBG_BtoA,
-      normalComputeBG_A,
-      normalComputeBG_B,
-      cursorQueryBG_A,
-      cursorQueryBG_B,
-      outputTextureBG_showA,
-      outputTextureBG_showB,
+      unifiedComputeBG_A,
+      unifiedComputeBG_B,
       renderBG,
     },
   };

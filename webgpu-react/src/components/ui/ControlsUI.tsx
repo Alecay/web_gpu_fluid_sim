@@ -45,7 +45,10 @@ export default function ControlsUI() {
               <K>F11</K> — Toggle Fullscreen
             </div>
             <div>
-              <K>F9</K> — Hide Controls
+              <K>F9</K> — Toggle Controls
+            </div>
+            <div>
+              <K>F8</K> — Toggle Debug
             </div>
             <div>
               <K>W</K>
