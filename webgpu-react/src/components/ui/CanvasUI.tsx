@@ -5,7 +5,7 @@ import HeightDisplay from "./HeightDisplay";
 import MapCoordDisplay from "./MapCoordDisplay";
 import HotkeyModal from "./HotkeyModal";
 import NoiseSettingsForm, { NoiseUISettings } from "../NoiseSettingsForm";
-import ControlsUI from "./ControlsUI";
+import ControlsUI, { ControlKey } from "./ControlsUI";
 import TimeControlGroup, { Speed } from "./TimeControlsGroup";
 import React, { useEffect, useState } from "react";
 import { fps } from "../../interfaces/FPSMeter";
@@ -60,6 +60,8 @@ export default function CanvasUI({
 
   const frameDurStr = `${cpuMs.toFixed(2)}`.padStart(5, "0");
 
+  const cellUpdatesPerTick = cursorQuery.chunkUpdates * 16 * 16 * speed * 4;
+
   return (
     <div
       style={{
@@ -112,7 +114,7 @@ export default function CanvasUI({
           >
             <Card.Body style={{ padding: "0.9rem 1rem" }}>
               <Card.Title style={{ fontSize: 16, marginBottom: 8 }}>
-                Debug Stats
+                Debug Stats - Press <ControlKey>F8</ControlKey> to close
               </Card.Title>
               <div>
                 {`FPS: ${fpsValue} (Frame Duration: ${frameDurStr} ms) (Frames: ${fmt.format(
@@ -120,6 +122,12 @@ export default function CanvasUI({
                 )})`}
               </div>
               <div>{`Simulation Steps: ${fmt.format(simIndex)}`}</div>
+              <div>{`Chunk Updates: ${fmt.format(
+                cursorQuery.chunkUpdates
+              )}`}</div>
+              <div>{`Cell Updates per frame: ${fmt.format(
+                cellUpdatesPerTick
+              )}`}</div>
               <div>
                 {`Total Fluid: ${fmt.format(
                   Math.ceil(cursorQuery.fluidTotal)
@@ -127,16 +135,27 @@ export default function CanvasUI({
               </div>
               <div>
                 {`Total Anti Fluid: ${fmt.format(
-                  Math.ceil(cursorQuery.anitFluidTotal)
+                  Math.ceil(cursorQuery.antiFluidTotal)
                 )}`}
               </div>
               <div>
                 {`Total Combined Fluid: ${fmt.format(
-                  Math.ceil(cursorQuery.fluidTotal - cursorQuery.anitFluidTotal)
+                  Math.ceil(cursorQuery.fluidTotal - cursorQuery.antiFluidTotal)
                 )}`}
               </div>
             </Card.Body>
           </Card>
+        </div>
+      )}
+      {!showDebugUI && (
+        <div
+          style={{
+            position: "absolute",
+            top: "5px",
+            left: "5px",
+          }}
+        >
+          <div>{`FPS: ${fpsValue}`}</div>
         </div>
       )}
 

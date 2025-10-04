@@ -73,6 +73,23 @@ fn isVisible(coord: vec2<u32>, expand: i32) -> bool {
          (coord.y >= y0 && coord.y < y1);
 }
 
+fn isDirectNeighbor(a: vec2<u32>, b: vec2<u32>) -> bool {
+    let dx = i32(a.x) - i32(b.x);
+    let dy = i32(a.y) - i32(b.y);
+    let adx = abs(dx);
+    let ady = abs(dy);
+
+    return (a.x == b.x && a.y == b.y) || ((adx + ady) == 1);
+}
+
+fn isNeighbor(a: vec2<u32>, b: vec2<u32>) -> bool {
+    let dx = abs(i32(a.x) - i32(b.x));
+    let dy = abs(i32(a.y) - i32(b.y));
+
+    // Exclude self (dx=0 && dy=0)
+    return (dx <= 1 && dy <= 1) && !(dx == 0 && dy == 0);
+}
+
 fn getColorStepHeight() -> f32
 {
   if(uTerrain.colorSteps <= 0u) { return 0.0; }

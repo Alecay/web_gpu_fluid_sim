@@ -3,7 +3,8 @@ export interface CursorQuery {
   fAmount: number;
   normal: { x: number; y: number; z: number };
   fluidTotal: number;
-  anitFluidTotal: number;
+  antiFluidTotal: number;
+  chunkUpdates: number;
 }
 
 export const DefaultCursorQuery: CursorQuery = {
@@ -11,5 +12,6 @@ export const DefaultCursorQuery: CursorQuery = {
   fAmount: 0,
   normal: { x: 0, y: 0, z: 0 },
   fluidTotal: 0,
-  anitFluidTotal: 0,
+  antiFluidTotal: 0,
+  chunkUpdates: 0,
 };

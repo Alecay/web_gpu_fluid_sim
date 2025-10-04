@@ -1,6 +1,6 @@
 import { Card, Col, Container, Row } from "react-bootstrap";
 
-const K: React.FC<React.PropsWithChildren> = ({ children }) => (
+export const ControlKey: React.FC<React.PropsWithChildren> = ({ children }) => (
   <kbd
     style={{
       padding: "0.1rem 0.4rem",
@@ -42,40 +42,46 @@ export default function ControlsUI() {
           {/* Key help */}
           <div style={{ fontSize: 14, lineHeight: 1.6, marginBottom: 8 }}>
             <div>
-              <K>F11</K> — Toggle Fullscreen
+              <ControlKey>F11</ControlKey> — Toggle Fullscreen
             </div>
             <div>
-              <K>F9</K> — Toggle Controls
+              <ControlKey>F9</ControlKey> — Toggle Controls
             </div>
             <div>
-              <K>F8</K> — Toggle Debug
+              <ControlKey>F8</ControlKey> — Toggle Debug Stats
             </div>
             <div>
-              <K>W</K>
-              <K>A</K>
-              <K>S</K>
-              <K>D</K> or <K>←</K>
-              <K>→</K>
-              <K>↑</K>
-              <K>↓</K> — Pan Camera
+              <ControlKey>W</ControlKey>
+              <ControlKey>A</ControlKey>
+              <ControlKey>S</ControlKey>
+              <ControlKey>D</ControlKey> or <ControlKey>←</ControlKey>
+              <ControlKey>→</ControlKey>
+              <ControlKey>↑</ControlKey>
+              <ControlKey>↓</ControlKey> — Pan Camera
             </div>
             <div>
-              <K>ScrollWheel</K> — Zoom
+              <ControlKey>ScrollWheel</ControlKey> — Zoom
             </div>
             <div>
-              <K>Shift</K> + <K>ScrollWheel</K> — Change Brush Radius
+              <ControlKey>Shift</ControlKey> +{" "}
+              <ControlKey>ScrollWheel</ControlKey> — Change Brush Radius
             </div>
             <div>
-              <K>LMB</K>/<K>RMB</K> — (Paint / Remove) Fluid
+              <ControlKey>LMB</ControlKey>/<ControlKey>RMB</ControlKey> — (Paint
+              / Remove) Fluid
             </div>
             <div>
-              <K>Spacebar</K> — Toggle Pause
+              <ControlKey>Spacebar</ControlKey> — Toggle Pause
             </div>
             <div>
-              <K>Tab</K> / <K>Shift</K>+<K>Tab</K> — Increase / Decrease Speed
+              <ControlKey>Tab</ControlKey> / <ControlKey>Shift</ControlKey>+
+              <ControlKey>Tab</ControlKey> — Increase / Decrease Speed
             </div>
             <div>
-              <K>C</K> — Reset Map
+              <ControlKey>C</ControlKey> — Clear Map
+            </div>
+            <div>
+              <ControlKey>R</ControlKey> — Randmoize Map
             </div>
           </div>
         </Card.Body>

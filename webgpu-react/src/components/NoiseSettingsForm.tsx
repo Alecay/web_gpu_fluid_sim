@@ -50,8 +50,10 @@ export const defaultNoiseUISettings: NoiseUISettings = {
 
   // width: 1920, // 960,
   // height: 1080, // 540,
-  width: 960,
-  height: 540,
+  // width: 960,
+  // height: 540,
+  width: 1000,
+  height: 1000,
   maxCellValue: 100.0,
   terrainHeightMultiplier: 0.85,
   colorSteps: 20,

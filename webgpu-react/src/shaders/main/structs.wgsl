@@ -2,6 +2,8 @@ struct View {
     size      : vec2<u32>, // width, height (pixels)
     time      : f32,       // seconds
     simIndex  : u32,       // [0-inf] simulation passes
+    showDebug : u32, // @16
+    
 };
 
 struct Input {
@@ -44,6 +46,8 @@ struct CursorQuery
     fluidTotal     : f32,      // starts as 48
     // Total antiFluid on the entire map
     anitFluidTotal : f32,      // starts as 52
+    chunkUpdates   : u32, // starts at 56
+    _pad0          : u32,
 };
 // total size = 56 -> rounded to 64 bytes
 
@@ -51,6 +55,6 @@ struct ChunkData // total of 16 bytes
 {
   fluidTotal          : f32,      // The total fluid in this chunk @ 0
   anitFluidTotal      : f32,      // The total anti fluid in this chunk @ 4
-  deepestFluid        : u32,      // The index of the deepest fluid in this chunk @ 8
-  deepestAntiFluid    : u32,      // The index of the deepest anti fluid in this chunk @ 12
+  deepestFluid        : i32,      // The index of the deepest fluid in this chunk @ 8
+  deepestAntiFluid    : i32,      // The index of the deepest anti fluid in this chunk @ 12
 };

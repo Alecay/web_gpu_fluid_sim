@@ -60,12 +60,13 @@ export default function App() {
     defaultNoiseUISettings
   );
 
+  const isDevBuid = import.meta.env.DEV;
   // Game State
   const [paused, setPaused] = React.useState(false);
   const [speed, setSpeed] = React.useState<Speed>(1);
   const [simIndex, setSimIndex] = useState(0);
   const [showControlsUI, setShowControlsUI] = useState(true);
-  const [showDebugUI, setShowDebugUI] = useState(true);
+  const [showDebugUI, setShowDebugUI] = useState(isDevBuid);
 
   const [input, setInput] = useState<Input>(DefaultInput);
   const inputRef = useRef(input);
@@ -168,6 +169,8 @@ export default function App() {
     let last = performance.now();
     const SPEED = 600; // pixels per second
 
+    webHandleRef.current?.setShowDebug(showDebugUI);
+
     const getBaseSize = () => {
       const vw = window.innerWidth;
       const vh = window.innerHeight;
@@ -207,10 +210,10 @@ export default function App() {
       const togglePause = () => {
         setPaused((p) => {
           let np = !p;
-          setInput({
-            ...input,
+          setInput((i) => ({
+            ...i,
             simulationSubSteps: np ? 0 : Math.ceil(4 * speed),
-          });
+          }));
           return np;
         });
         e.preventDefault();
@@ -262,12 +265,19 @@ export default function App() {
       }
       // Toggle Controls UI
       else if (e.code == "F8") {
-        setShowDebugUI((p) => !p);
+        setShowDebugUI((p) => {
+          webHandleRef.current?.setShowDebug(!p);
+          return !p;
+        });
         e.preventDefault();
       }
       // Toggle Controls UI
       else if (e.code == "KeyC") {
         webHandleRef.current?.resetMap();
+        e.preventDefault();
+      } else if (!e.ctrlKey && e.code == "KeyR") {
+        webHandleRef.current?.randomizeMap();
+        e.preventDefault();
       }
     };
 

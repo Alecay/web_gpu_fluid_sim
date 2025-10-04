@@ -16,7 +16,16 @@ fn fluid_render(@builtin(global_invocation_id) gid : vec3<u32>) {
     let white = vec4f(1.0, 1.0, 1.0, 1.0);
 
     // Compute the final shadow color
+    let idOffset = uView.size.x * uView.size.y * 2;
     var finalColor = clear;
+
+    let chunkSize = 16u;
+    let chunk = getChunk(getChunkPos(coord, chunkSize), chunkSize);
+    if(chunk.fluidTotal < 1e-7 && chunk.anitFluidTotal < 1e-7)
+    {
+        outputTex[idx(x,y) + idOffset] = clear;
+        return;
+    }
 
     let fluidLevel = (f32(uTerrain.maxCellValue) * 1.0);
     let fluidAMax = 0.75;
@@ -39,7 +48,7 @@ fn fluid_render(@builtin(global_invocation_id) gid : vec3<u32>) {
 
         var fluidOutline = clear;//getFluidOutlineColor(coord, lightDir, shadeColor, highlightColor, castedShadowColor.a < 1e-4);
         let epsilon = getColorStepHeight() * 0.9;
-        if(fluidHeight + terrainHeight < f32(uTerrain.maxCellValue) * 2.0 && isFluidBoundary(coord, epsilon))
+        if(abs(fluidHeight) + terrainHeight < f32(uTerrain.maxCellValue) * 2.0 && isFluidBoundary(coord, epsilon))
         {
             fluidOutline = lerp4(fluidColor, vec4(0.0, 0.0, 0.0, fluidA), 0.5);
             finalColor = over_rgba(finalColor, fluidOutline);
@@ -47,6 +56,6 @@ fn fluid_render(@builtin(global_invocation_id) gid : vec3<u32>) {
     }
     
 
-    let idOffset = uView.size.x * uView.size.y * 2;
+
     outputTex[idx(x,y) + idOffset] = finalColor;
 }

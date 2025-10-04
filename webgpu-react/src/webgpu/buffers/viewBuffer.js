@@ -12,7 +12,9 @@ struct View {
 export const ViewLayout = defineStructLayout([
   { name: "size", type: "vec2u" },
   { name: "time", type: "f32" },
-  { name: "simIndex", type: "u32" }, // padding
+  { name: "simIndex", type: "u32" },
+  { name: "showDebug", type: "u32" },
+  // padding
 ]);
 
 /**
@@ -22,6 +24,7 @@ export const ViewLayout = defineStructLayout([
  *   height : number,
  *   time : number,
  *   simIndex: number,
+ *   showDebug: boolean
  * }} settings
  * @param {GPUBuffer=} existing
  */
@@ -30,7 +33,7 @@ export function createOrUpdateViewBuffer(device, settings, existing) {
     size: [settings.width, settings.height],
     time: settings.time,
     simIndex: settings.simIndex,
-    _padT0: 0,
+    showDebug: settings.showDebug ? 1 : 0,
   };
 
   return createOrUpdateBuffer(

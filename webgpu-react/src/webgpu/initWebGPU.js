@@ -36,6 +36,8 @@ export async function initWebGPU(
     canvas.__wgpuCleanup(); // stop old RAF, remove listeners
   }
 
+  const isDevBuid = import.meta.env.DEV;
+
   var updateNormals = true;
   var updateTerrainTexture = true;
   var updateShadowTexture = true;
@@ -70,12 +72,22 @@ export async function initWebGPU(
   var currentTime = 0;
   var frameIdx = 0;
   var simIndex = 0;
+  var showDebug = isDevBuid;
+
+  const toggleShowDebug = () => {
+    showDebug = !showDebug;
+  };
+
+  const setShowDebug = (s) => {
+    showDebug = s;
+  };
 
   const viewUniformBuffer = createOrUpdateViewBuffer(device, {
     width: noiseSettings.width,
     height: noiseSettings.height,
     time: 0,
     simIndex: 0,
+    showDebug,
   });
 
   function updateViewBuffer() {
@@ -85,7 +97,8 @@ export async function initWebGPU(
         width: noiseSettings.width,
         height: noiseSettings.height,
         time: currentTime,
-        simIndex: simIndex,
+        simIndex,
+        showDebug,
       },
       viewUniformBuffer
     );
@@ -211,13 +224,13 @@ export async function initWebGPU(
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
 
-  // Initialize both (optional)
-  const resetMap = () => {
+  // Initialize cells
+  const initializeNoise = (seed) => {
     const init = new Float32Array(
       noiseSettings.width * noiseSettings.height * FLOATS_PER_CELL
     );
     const noiseData = generateNoiseMap(
-      noiseSettings.seed,
+      seed,
       noiseSettings.width,
       noiseSettings.height,
       noiseSettings.noiseType,
@@ -235,6 +248,24 @@ export async function initWebGPU(
 
     device.queue.writeBuffer(prevCellsBuffer, 0, init);
     device.queue.writeBuffer(nextCellsBuffer, 0, init);
+
+    // reset some values
+    frameIdx = 0;
+    simIndex = 0;
+    updateTerrainTexture = true;
+
+    // rafId = requestAnimationFrame(frame);
+  };
+
+  var lastMapSeed = noiseSettings.seed;
+
+  const resetMap = () => {
+    initializeNoise(lastMapSeed);
+  };
+
+  const randomizeMap = () => {
+    lastMapSeed = Math.ceil(Math.random() * 1000000000);
+    resetMap();
   };
 
   resetMap();
@@ -352,9 +383,14 @@ export async function initWebGPU(
     }
 
     if (frameIdx === 0 || input.mouse0Held || input.mouse1Held) {
+      // updateTerrainTexture = true;
+      //updateNormals = true;
+      updateShadowTexture = true;
+    }
+
+    if (frameIdx < 60) {
       updateTerrainTexture = true;
       updateNormals = true;
-      updateShadowTexture = true;
     }
 
     if (input.visibleRectChanged) {
@@ -441,7 +477,7 @@ export async function initWebGPU(
       input = { ...input, visibleRectChanged: false };
     }
 
-    {
+    if (frameIdx % 10 == 0) {
       const debugRenderPass = encoder.beginComputePass({
         label: "Debug Texture Compute Pass",
       });
@@ -547,14 +583,16 @@ export async function initWebGPU(
       const fAmount = dv.getFloat32(28, true); // @32
       // _pad0 lives at 48.. (ignored)
       const fluidTotal = dv.getFloat32(48, true); // @48
-      const anitFluidTotal = dv.getFloat32(52, true); // @52
+      const antiFluidTotal = dv.getFloat32(52, true); // @52
+      const chunkUpdates = dv.getUint32(56, true); // @56
 
       const cursorQuery = {
         height,
         normal: { x: nx, y: ny, z: nz },
         fAmount,
         fluidTotal,
-        anitFluidTotal,
+        antiFluidTotal,
+        chunkUpdates,
       };
       setCursorQuery(cursorQuery);
 
@@ -604,6 +642,9 @@ export async function initWebGPU(
   const handle = {
     cleanup,
     resetMap,
+    randomizeMap,
+    toggleShowDebug,
+    setShowDebug,
   };
 
   return handle;

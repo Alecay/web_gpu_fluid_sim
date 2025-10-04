@@ -7,6 +7,9 @@ import type { Dispatch, SetStateAction } from "react";
 export interface WebGPUHandle {
   cleanup: () => void;
   resetMap: () => void;
+  randomizeMap: () => void;
+  toggleShowDebug: () => void;
+  setShowDebug: (s: boolean) => void;
   // add more methods as your JS returns them
 }
 
