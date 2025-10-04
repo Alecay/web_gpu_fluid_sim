@@ -334,6 +334,7 @@ export async function initWebGPU(
   let aToB = true; // true => compute uses A->B and we render B this frame
   let rafId = 0;
   var lastInput = getInput();
+  let inFlight = false;
 
   async function frame(tMs = 0) {
     if (context.__deviceId !== device.__id) return;
@@ -346,12 +347,7 @@ export async function initWebGPU(
       lastInput = input;
     }
 
-    const preformQuery =
-      // input.mouseMoved ||
-      // input.mouse0Held ||
-      // input.mouse1Held ||
-      // input.mouse2Held ||
-      frameIdx % 6 === 0;
+    const preformQuery = frameIdx % 6 === 0;
 
     await device.pushErrorScope("validation");
     currentTime = tMs * 0.001;
@@ -510,7 +506,7 @@ export async function initWebGPU(
       cursorQueryPass.end();
     }
 
-    if (frameIdx % 30 == 15) {
+    if (frameIdx % 60 == 0) {
       const totalQueryPass = encoder.beginComputePass({
         label: "Total Query Pass",
       });
@@ -553,7 +549,7 @@ export async function initWebGPU(
       rpass.end();
     }
 
-    if (preformQuery)
+    if (preformQuery && !inFlight)
       encoder.copyBufferToBuffer(
         cursorQueryBuffer,
         0,
@@ -569,55 +565,47 @@ export async function initWebGPU(
     if (updateTerrainTexture || updateShadowTexture || updateNormals) {
       // console.log(`Update: N (${updateNormals}), T (${updateTerrainTexture}), S (${updateShadowTexture})`)
     }
-    if (preformQuery) {
-      // await device.queue.onSubmittedWorkDone();
-      await cursorQueryReadback.mapAsync(GPUMapMode.READ);
-      const mapped = cursorQueryReadback.getMappedRange(); // ArrayBuffer
-      const dv = new DataView(mapped);
+    if (preformQuery && !inFlight) {
+      // Option A: let mapAsync resolve when GPU finishes the copy
+      cursorQueryReadback
+        .mapAsync(GPUMapMode.READ)
+        .then(() => {
+          const dv = new DataView(cursorQueryReadback.getMappedRange(0, 64));
 
-      // ---- unpack with correct offsets
-      const height = dv.getFloat32(0, true); // @0
-      const nx = dv.getFloat32(16, true); // @16
-      const ny = dv.getFloat32(20, true); // @20
-      const nz = dv.getFloat32(24, true); // @24
-      const fAmount = dv.getFloat32(28, true); // @32
-      // _pad0 lives at 48.. (ignored)
-      const fluidTotal = dv.getFloat32(48, true); // @48
-      const antiFluidTotal = dv.getFloat32(52, true); // @52
-      const chunkUpdates = dv.getUint32(56, true); // @56
+          const height = dv.getFloat32(0, true); // @0
+          const nx = dv.getFloat32(16, true); // @16
+          const ny = dv.getFloat32(20, true); // @20
+          const nz = dv.getFloat32(24, true); // @24
+          const fAmount = dv.getFloat32(28, true); // @28  (note: your comment said 32)
+          const fluidTotal = dv.getFloat32(48, true); // @48
+          const antiFluidTotal = dv.getFloat32(52, true); // @52
+          const chunkUpdates = dv.getUint32(56, true); // @56
 
-      const cursorQuery = {
-        height,
-        normal: { x: nx, y: ny, z: nz },
-        fAmount,
-        fluidTotal,
-        antiFluidTotal,
-        chunkUpdates,
-      };
-      setCursorQuery(cursorQuery);
-
-      cursorQueryReadback.unmap();
+          setCursorQuery({
+            height,
+            normal: { x: nx, y: ny, z: nz },
+            fAmount,
+            fluidTotal,
+            antiFluidTotal,
+            chunkUpdates,
+          });
+        })
+        .catch(() => {
+          // device lost / app shutdown; ignore
+        })
+        .finally(() => {
+          cursorQueryReadback.unmap();
+          inFlight = false;
+        });
     }
-
-    // if (input.mouseMoved) {
-    //   input = { ...getInput(), mouseMoved: false };
-    //   if (frameIdx % 20 == 0)
-    //     input = { ...input, totalSimulationSteps: simIndex };
-    //   setInput(input);
-    // }
 
     updateTerrainTexture = false;
     updateShadowTexture = false;
     updateNormals = false;
 
-    //console.log(input.visibleRect);
-
     fps.end(tMs);
 
     frameIdx++;
-
-    // Flip for next frame (no copies, no buffer reassign)
-    //aToB = !aToB;
 
     rafId = requestAnimationFrame(frame);
   }
