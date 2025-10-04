@@ -283,31 +283,6 @@ fn over_rgba(base: vec4<f32>, top: vec4<f32>) -> vec4<f32> {
 
 fn inShadow(coord : vec2<u32>, sunPosition : vec3<f32>) -> bool
 {
-  // let rayTarget = vec3<f32>(f32(coord.x), roundedCellHeight(coord), f32(coord.y));
-  // var currentPos = sunPosition;
-
-  // let accuracy = f32(10.0);
-
-  // var passes = 0;
-  // while (passes < 1000)
-  // {
-  //   passes++;
-
-  //   if(distance(currentPos, rayTarget) < 1e-6)
-  //   {
-  //     return false;
-  //   }
-    
-  //   let distG = distToGround(currentPos);
-  //   if(distG <= -1e-3) 
-  //   { 
-  //     return true;
-  //   }
-
-  //   let nextPosition = move_towards3(currentPos, rayTarget, f32(max(0.5, distG / accuracy)));
-  //   currentPos = nextPosition;    
-  // }
-
   var targetHeight = roundedCellHeight(coord);
   targetHeight = max(50.0, targetHeight);
 
@@ -349,10 +324,94 @@ fn inShadow(coord : vec2<u32>, sunPosition : vec3<f32>) -> bool
     currentPos = nextPosition;
   }
   return false;
-
-
-  // return false;
 }
+
+fn slice_count(coord: vec2<u32>) -> u32
+{
+  return 0u;
+}
+
+fn slice_min(coord: vec2<u32>, idx: u32) -> f32
+{
+  return 0.0;
+}
+
+fn slice_max(coord: vec2<u32>, idx: u32) -> f32
+{
+  return roundedCellHeight(coord);
+}
+
+fn inShadowSlices(coord : vec2<u32>, sunPosition : vec3<f32>) -> bool
+{
+  var targetHeight = roundedCellHeight(coord);
+  targetHeight = max(50.0, targetHeight);
+
+  let rayTarget = vec3<f32>(f32(coord.x), targetHeight, f32(coord.y));
+  var currentPos = sunPosition;
+
+  let accuracy = f32(1.0);
+  let EPS = 1e-3;
+
+  var passes = 0;
+  while (passes < 1000) {
+    passes++;
+
+    // --- done? (avoid sqrt unless needed)
+    let toT = currentPos - rayTarget;
+    let toT2 = dot(toT, toT);
+    if (toT2 < 1e-8) {
+      return false;
+    }
+
+    // --- terrain hit (your existing SDF/height test)
+    let distG = distToGround(currentPos);
+    if (distG <= -EPS) {
+      return true;
+    }
+
+    // --- OVERHANG test: check vertical slices in this XZ cell
+    //     If current Y lies within any [z0, z1], we are inside shadow.
+    //     (Assumes slices do NOT include the terrain interval.)
+    let ix = u32(clamp(floor(currentPos.x), 0.0, f32(uView.size.x - 1u)));
+    let iz = u32(clamp(floor(currentPos.z), 0.0, f32(uView.size.y - 1u)));
+    let cCell = vec2<u32>(ix, iz);
+
+    let nSlices = slice_count(cCell);
+    var hitSlice = false;
+    for (var s: u32 = 0u; s < nSlices; s = s + 1u) {
+      let z0 = slice_min(cCell, s);
+      let z1 = slice_max(cCell, s);
+      // inclusive with small epsilon to be robust
+      if (currentPos.y >= z0 - EPS && currentPos.y <= z1 + EPS) {
+        hitSlice = true;
+        break;
+      }
+    }
+    if (hitSlice) {
+      return true;
+    }
+
+    // --- Adaptive step (as before), but avoid skipping thin slices:
+    let coarse = clamp(distG * 0.8, 0.5, uTerrain.maxCellValue * 0.2);
+    let fine   = clamp(distG / accuracy, 0.5, 2.0);
+    var moveAmount = select(coarse, fine, distG > uTerrain.maxCellValue * 0.02);
+
+    // If this column has overhangs, cap step so we don't leap past them
+    if (nSlices > 0u) {
+      // Tune this cap to your vertical resolution; 0.75..1.0 cell is a good start.
+      moveAmount = min(moveAmount, 1.0);
+    }
+
+    // Never overshoot the target
+    let toTargetLen = sqrt(toT2);
+    moveAmount = min(moveAmount, toTargetLen);
+
+    // March toward target
+    currentPos = move_towards3(currentPos, rayTarget, moveAmount);
+  }
+  return false;
+}
+
 
 // Build one "shadow layer" that combines tinting + shading.
 // Inputs:

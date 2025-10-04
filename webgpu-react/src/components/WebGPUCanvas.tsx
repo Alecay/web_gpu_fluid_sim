@@ -36,6 +36,7 @@ const WebGPUCanvas = forwardRef<HTMLCanvasElement, WebGPUCanvasProps>(
       setCursorQuery,
       style,
       setSimIndex,
+      children,
     },
     ref
   ) => {
@@ -76,7 +77,9 @@ const WebGPUCanvas = forwardRef<HTMLCanvasElement, WebGPUCanvasProps>(
           height: "100%",
           // transform: "translate(-25%, 0%)",ssd
         }}
-      />
+      >
+        {children}
+      </canvas>
     );
   }
 );

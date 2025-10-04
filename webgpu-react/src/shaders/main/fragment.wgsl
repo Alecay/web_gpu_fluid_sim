@@ -33,7 +33,9 @@ fn fs(@builtin(position) frag_pos: vec4f) -> @location(0) vec4f {
         cursorOutline = vec4f(0.0, 0.0, 0.0, 0.5);
     }
 
-    var combinedColor = over_rgba(terrainColor, shadowColor);
+    var combinedColor = vec4f(0.0, 0.0, 0.0, 0.0);
+    combinedColor = over_rgba(combinedColor, terrainColor);
+    combinedColor = over_rgba(combinedColor, shadowColor);
     combinedColor = over_rgba(combinedColor, fluidColor);
     combinedColor = over_rgba(combinedColor, cursorOutline);
     if(uView.showDebug > 0u) { combinedColor = over_rgba(combinedColor, debugColor); }

@@ -3,8 +3,8 @@ import React, { useEffect } from "react";
 import { Button, ButtonGroup } from "react-bootstrap";
 import { PauseFill, PlayFill } from "react-bootstrap-icons";
 
-export type Speed = 0.25 | 0.5 | 1 | 2 | 3 | 4;
-const timeOptions = [0.25, 0.5, 1, 2, 3, 4];
+export type Speed = 0.25 | 0.5 | 1 | 2 | 3 | 4 | 8;
+const timeOptions = [0.25, 0.5, 1, 2, 3, 4, 8];
 
 const clamp = (v: number, min: number, max: number) =>
   Math.min(max, Math.max(min, v));

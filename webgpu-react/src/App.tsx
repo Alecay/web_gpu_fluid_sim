@@ -1,4 +1,4 @@
-import { Card, Col, Container, Row } from "react-bootstrap";
+import { Anchor, Card, Col, Container, Row } from "react-bootstrap";
 import WebGPUCanvas from "./components/WebGPUCanvas";
 import NoiseSettingsForm, {
   NoiseUISettings,
@@ -22,6 +22,7 @@ import {
   previousSpeed,
   Speed,
 } from "./components/ui/TimeControlsGroup";
+import WebCanvasSprite from "./components/WebCanvasSptire";
 
 const isEditableTarget = (t: EventTarget | null) => {
   const el = t as HTMLElement | null;
@@ -60,7 +61,7 @@ export default function App() {
     defaultNoiseUISettings
   );
 
-  const isDevBuid = import.meta.env.DEV;
+  const isDevBuid = false; //import.meta.env.DEV;
   // Game State
   const [paused, setPaused] = React.useState(false);
   const [speed, setSpeed] = React.useState<Speed>(1);
@@ -562,12 +563,9 @@ export default function App() {
             backgroundColor: "black",
             width: canvasSize.width,
             height: canvasSize.height,
-            //inset: 0, // top:0,left:0,right:0,bottom:0
             zIndex: -5,
             display: "grid",
             placeItems: "center",
-            // left: `${canvasPosition.x}px`,
-            // top: `${canvasPosition.y}px`,
             transform: `translate3d(${canvasPosition.x}px, ${canvasPosition.y}px, 0)`,
             transition: canvasPositionEasing
               ? "transform 360ms ease-out"
@@ -583,7 +581,16 @@ export default function App() {
             setWebGPUHandle={setWebHandle}
             setCursorQuery={setCursorQuery}
             setSimIndex={setSimIndex}
-          />
+          ></WebGPUCanvas>
+
+          {/* <WebCanvasSprite
+            canvasSize={canvasSize}
+            noiseSettings={settings}
+            src="public/sprites/tree001.png"
+            canvasPos={{ x: 240, y: 135 }}
+            scale={1/2}
+            anchor={"bottom-left"}
+          /> */}
         </div>
 
         <CanvasUI
