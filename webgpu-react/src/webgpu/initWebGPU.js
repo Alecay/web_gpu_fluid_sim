@@ -336,7 +336,7 @@ export async function initWebGPU(
   var lastInput = getInput();
   let inFlight = false;
 
-  async function frame(tMs = 0) {
+  function frame(tMs = 0) {
     if (context.__deviceId !== device.__id) return;
 
     fps.begin();
@@ -349,7 +349,7 @@ export async function initWebGPU(
 
     const preformQuery = frameIdx % 6 === 0;
 
-    await device.pushErrorScope("validation");
+    device.pushErrorScope("validation");
     currentTime = tMs * 0.001;
     updateViewBuffer();
 
@@ -559,14 +559,16 @@ export async function initWebGPU(
       );
     device.queue.submit([encoder.finish()]);
 
-    const err = await device.popErrorScope();
-    if (err) console.error("Validation error:", err.message);
+    device.popErrorScope().then((err) => {
+      if (err) console.error(err.message);
+    });
 
     if (updateTerrainTexture || updateShadowTexture || updateNormals) {
       // console.log(`Update: N (${updateNormals}), T (${updateTerrainTexture}), S (${updateShadowTexture})`)
     }
     if (preformQuery && !inFlight) {
       // Option A: let mapAsync resolve when GPU finishes the copy
+      inFlight = true;
       cursorQueryReadback
         .mapAsync(GPUMapMode.READ)
         .then(() => {
