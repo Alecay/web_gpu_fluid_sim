@@ -194,7 +194,7 @@ export default function CanvasUI({
       </div> */}
       <HeightDisplay cursorQuery={cursorQuery} />
       {/* Opens on Escape by default; press Esc again to close (Modal's keyboard close) */}
-      <HotkeyModal title="Debug Menu" size="xl">
+      {/* <HotkeyModal title="Debug Menu" size="xl">
         <NoiseSettingsForm
           initial={settings}
           onChange={setSettings}
@@ -203,7 +203,7 @@ export default function CanvasUI({
             console.log("Apply clicked:", s);
           }}
         />
-      </HotkeyModal>
+      </HotkeyModal> */}
     </div>
   );
 }

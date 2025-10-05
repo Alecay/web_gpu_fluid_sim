@@ -281,63 +281,50 @@ fn over_rgba(base: vec4<f32>, top: vec4<f32>) -> vec4<f32> {
   return vec4<f32>(rgb, oa);
 }
 
-fn inShadow(coord : vec2<u32>, sunPosition : vec3<f32>) -> bool
-{
-  var targetHeight = roundedCellHeight(coord);
-  targetHeight = max(50.0, targetHeight);
-
-  let rayTarget = vec3<f32>(f32(coord.x), targetHeight, f32(coord.y));
-  var currentPos = sunPosition;
-
-  // accuracy stays high, but steps adapt to distance-to-ground
-  let accuracy = f32(1.0);
-
-  var passes = 0;
-  while (passes < 1000) {
-    passes++;
-
-    // squared distance check (avoid sqrt each loop)
-    let toT = currentPos - rayTarget;
-    let toT2 = dot(toT, toT);
-    if (toT2 < 1e-8) {        // (~1e-4^2); tune as needed
-      return false;
-    }
-
-    let distG = distToGround(currentPos);
-    if (distG <= -1e-3) {
-      return true;
-    }
-
-
-    // --- Adaptive step: coarse when far from ground, fine near ground ---
-    // Coarse branch: larger/faster steps when well above ground
-    let coarse = clamp(distG * 0.8, 0.5, uTerrain.maxCellValue * 0.2);
-    // Fine branch: smaller/safer steps near ground to prevent gaps
-    let fine = clamp(distG / accuracy, 0.5, 2.0);
-    var moveAmount = select(coarse, fine, distG > uTerrain.maxCellValue * 0.02);
-
-    // Never overshoot the target
-    let toTargetLen = sqrt(toT2);        // one sqrt only when needed
-    moveAmount = min(moveAmount, toTargetLen);
-
-    let nextPosition = move_towards3(currentPos, rayTarget, moveAmount);
-    currentPos = nextPosition;
-  }
-  return false;
-}
-
 fn slice_count(coord: vec2<u32>) -> u32
 {
+  if (coord.x >= 400u && coord.x < 402u && coord.y >= 280u && coord.y < 282u)
+  {
+    return 2u;
+  }
   return 0u;
 }
 
 fn slice_min(coord: vec2<u32>, idx: u32) -> f32
 {
+  if (coord.x >= 400u && coord.x < 402u && coord.y >= 280u && coord.y < 282u)
+  {
+    let gap = 3.0;
+    let width = 3.0;
+    if(idx == 0u)
+    {
+      return roundedCellHeight(coord) + gap;
+    }
+    else if(idx == 1u)
+    {
+      return roundedCellHeight(coord) + gap * 2.0 + width;
+    }
+  }
+
   return 0.0;
 }
 
 fn slice_max(coord: vec2<u32>, idx: u32) -> f32
 {
+  if (coord.x >= 400u && coord.x < 402u && coord.y >= 280u && coord.y < 282u)
+  {
+    let gap = 3.0;
+    let width = 3.0;
+    if(idx == 0u)
+    {
+      return roundedCellHeight(coord) + gap + width;
+    }
+    else if(idx == 1u)
+    {
+      return roundedCellHeight(coord) + gap * 2.0 + width * 2.0;
+    }
+  }
+
   return roundedCellHeight(coord);
 }
 
@@ -408,6 +395,53 @@ fn inShadowSlices(coord : vec2<u32>, sunPosition : vec3<f32>) -> bool
 
     // March toward target
     currentPos = move_towards3(currentPos, rayTarget, moveAmount);
+  }
+  return false;
+}
+
+fn inShadow(coord : vec2<u32>, sunPosition : vec3<f32>) -> bool
+{
+  //return inShadowSlices(coord, sunPosition);
+
+  var targetHeight = roundedCellHeight(coord);
+  targetHeight = max(50.0, targetHeight);
+
+  let rayTarget = vec3<f32>(f32(coord.x), targetHeight, f32(coord.y));
+  var currentPos = sunPosition;
+
+  // accuracy stays high, but steps adapt to distance-to-ground
+  let accuracy = f32(1.0);
+
+  var passes = 0;
+  while (passes < 1000) {
+    passes++;
+
+    // squared distance check (avoid sqrt each loop)
+    let toT = currentPos - rayTarget;
+    let toT2 = dot(toT, toT);
+    if (toT2 < 1e-8) {        // (~1e-4^2); tune as needed
+      return false;
+    }
+
+    let distG = distToGround(currentPos);
+    if (distG <= -1e-3) {
+      return true;
+    }
+
+
+    // --- Adaptive step: coarse when far from ground, fine near ground ---
+    // Coarse branch: larger/faster steps when well above ground
+    let coarse = clamp(distG * 0.8, 0.5, uTerrain.maxCellValue * 0.2);
+    // Fine branch: smaller/safer steps near ground to prevent gaps
+    let fine = clamp(distG / accuracy, 0.5, 2.0);
+    var moveAmount = select(coarse, fine, distG > uTerrain.maxCellValue * 0.02);
+
+    // Never overshoot the target
+    let toTargetLen = sqrt(toT2);        // one sqrt only when needed
+    moveAmount = min(moveAmount, toTargetLen);
+
+    let nextPosition = move_towards3(currentPos, rayTarget, moveAmount);
+    currentPos = nextPosition;
   }
   return false;
 }

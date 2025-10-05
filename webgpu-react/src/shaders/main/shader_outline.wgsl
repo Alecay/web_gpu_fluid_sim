@@ -1,4 +1,8 @@
+//{colors}
+
 //{structs}
+
+//{object_def}
 
 //{helpers}
 
