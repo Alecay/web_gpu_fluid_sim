@@ -3,50 +3,54 @@ import React, { useEffect } from "react";
 import { Button, ButtonGroup } from "react-bootstrap";
 import { PauseFill, PlayFill } from "react-bootstrap-icons";
 
-export type Speed = 0.25 | 0.5 | 1 | 2 | 3 | 4 | 8;
+export type GameSpeed = 0.25 | 0.5 | 1 | 2 | 3 | 4 | 8;
 const timeOptions = [0.25, 0.5, 1, 2, 3, 4, 8];
 
 const clamp = (v: number, min: number, max: number) =>
   Math.min(max, Math.max(min, v));
 
-export function nextSpeed(s: Speed, loop: boolean = true): Speed {
+export function nextGameSpeed(s: GameSpeed, loop: boolean = true): GameSpeed {
   if (loop) {
     var index = (timeOptions.indexOf(s) + 1) % timeOptions.length;
-    return timeOptions[index] as Speed;
+    return timeOptions[index] as GameSpeed;
   } else {
     var index = clamp(timeOptions.indexOf(s) + 1, 0, timeOptions.length - 1);
-    return timeOptions[index] as Speed;
+    return timeOptions[index] as GameSpeed;
   }
 }
 
-export function previousSpeed(s: Speed, loop: boolean = true): Speed {
+export function previousGameSpeed(
+  s: GameSpeed,
+  loop: boolean = true
+): GameSpeed {
   if (loop) {
     var index =
       (timeOptions.indexOf(s) - 1 + timeOptions.length) % timeOptions.length;
-    return timeOptions[index] as Speed;
+    return timeOptions[index] as GameSpeed;
   } else {
     var index = clamp(timeOptions.indexOf(s) - 1, 0, timeOptions.length - 1);
-    return timeOptions[index] as Speed;
+    return timeOptions[index] as GameSpeed;
   }
 }
 
 type Props = {
-  speed: Speed;
+  gameSpeed: GameSpeed;
   paused: boolean;
-  onChange: (next: { paused: boolean; speed: Speed }) => void;
+  onChange: (next: { paused: boolean; gameSpeed: GameSpeed }) => void;
   className?: string;
   size?: "sm" | "lg";
 };
 
-export default function TimeControlGroup({
-  speed,
+export default function GameSpeedControlsUI({
+  gameSpeed,
   paused,
   onChange,
   className,
   size,
 }: Props) {
-  const setSpeed = (v: Speed) => onChange({ paused: false, speed: v });
-  const togglePause = () => onChange({ paused: !paused, speed });
+  const setGameSpeed = (v: GameSpeed) =>
+    onChange({ paused: false, gameSpeed: v });
+  const togglePause = () => onChange({ paused: !paused, gameSpeed });
 
   const buttonSize = 40;
   const buttonStyle: React.CSSProperties = {
@@ -68,12 +72,12 @@ export default function TimeControlGroup({
   // useEffect(() => {
   //   const onKeyDown = (e: KeyboardEvent) => {
   //     const setNextSpeed = () => {
-  //       setSpeed(nextSpeed(speed, false));
+  //       setGameSpeed(nextSpeed(gameSpeed, false));
   //       e.preventDefault();
   //     };
 
   //     const setPreviousSpeed = () => {
-  //       setSpeed(previousSpeed(speed, false));
+  //       setGameSpeed(previousSpeed(gameSpeed, false));
   //       e.preventDefault();
   //     };
 
@@ -98,7 +102,7 @@ export default function TimeControlGroup({
   //   return () => {
   //     window.removeEventListener("keydown", onKeyDown);
   //   };
-  // }, [speed, togglePause, setSpeed]);
+  // }, [gameSpeed, togglePause, setGameSpeed]);
 
   return (
     <div
@@ -130,15 +134,21 @@ export default function TimeControlGroup({
           <Button
             key={v}
             type="button"
-            variant={speed === v && !paused ? "primary" : "outline-secondary"}
-            active={speed === v && !paused}
-            onClick={() => setSpeed(v as Speed)}
-            aria-pressed={speed === v && !paused}
-            aria-label={v < 1 ? `1/${Math.round(1 / v)}x speed` : `${v}x speed`}
-            title={v < 1 ? `1/${Math.round(1 / v)}x speed` : `${v}x speed`}
+            variant={
+              gameSpeed === v && !paused ? "primary" : "outline-secondary"
+            }
+            active={gameSpeed === v && !paused}
+            onClick={() => setGameSpeed(v as GameSpeed)}
+            aria-pressed={gameSpeed === v && !paused}
+            aria-label={
+              v < 1 ? `1/${Math.round(1 / v)}x gameSpeed` : `${v}x gameSpeed`
+            }
+            title={
+              v < 1 ? `1/${Math.round(1 / v)}x gameSpeed` : `${v}x gameSpeed`
+            }
             style={{
               ...buttonStyle,
-              color: speed === v && !paused ? "white" : "darkgray",
+              color: gameSpeed === v && !paused ? "white" : "darkgray",
               marginLeft: "-4px",
               fontSize: v < 1 ? "15px" : "",
             }}

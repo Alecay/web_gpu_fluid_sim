@@ -36,7 +36,7 @@ export async function initWebGPU(
     canvas.__wgpuCleanup(); // stop old RAF, remove listeners
   }
 
-  const isDevBuid = import.meta.env.DEV;
+  const isDevBuid = false; //import.meta.env.DEV;
 
   var updateNormals = true;
   var updateTerrainTexture = true;

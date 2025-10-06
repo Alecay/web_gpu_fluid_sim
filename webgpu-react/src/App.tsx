@@ -18,10 +18,10 @@ import CanvasUI from "./components/ui/CanvasUI";
 import { WebGPUHandle } from "./webgpu/initWebGPU";
 import { VisibleRect } from "./interfaces/VisibleRect";
 import {
-  nextSpeed,
-  previousSpeed,
-  Speed,
-} from "./components/ui/TimeControlsGroup";
+  nextGameSpeed,
+  previousGameSpeed,
+  GameSpeed,
+} from "./components/ui/GameSpeedControlsUI";
 import WebCanvasSprite from "./components/WebCanvasSptire";
 
 const isEditableTarget = (t: EventTarget | null) => {
@@ -61,13 +61,13 @@ export default function App() {
     defaultNoiseUISettings
   );
 
-  const isDevBuid = false; //import.meta.env.DEV;
+  const isDevBuid = import.meta.env.DEV;
   // Game State
   const [paused, setPaused] = React.useState(false);
-  const [speed, setSpeed] = React.useState<Speed>(1);
+  const [gameSpeed, setGameSpeed] = React.useState<GameSpeed>(1);
   const [simIndex, setSimIndex] = useState(0);
-  const [showControlsUI, setShowControlsUI] = useState(true);
-  const [showDebugUI, setShowDebugUI] = useState(isDevBuid);
+  const [showControlsUI, setShowControlsUI] = useState(!isDevBuid);
+  const [showDebugUI, setShowDebugUI] = useState(false);
 
   const [input, setInput] = useState<Input>(DefaultInput);
   const inputRef = useRef(input);
@@ -213,7 +213,7 @@ export default function App() {
           let np = !p;
           setInput((i) => ({
             ...i,
-            simulationSubSteps: np ? 0 : Math.ceil(4 * speed),
+            simulationSubSteps: np ? 0 : Math.ceil(4 * gameSpeed),
           }));
           return np;
         });
@@ -221,8 +221,8 @@ export default function App() {
       };
 
       const setNextSpeed = () => {
-        setSpeed((s: Speed) => {
-          let ns = nextSpeed(s, false);
+        setGameSpeed((s: GameSpeed) => {
+          let ns = nextGameSpeed(s, false);
           setInput((i) => ({
             ...i,
             simulationSubSteps: paused ? 0 : Math.ceil(4 * ns),
@@ -233,8 +233,8 @@ export default function App() {
       };
 
       const setPreviousSpeed = () => {
-        setSpeed((s: Speed) => {
-          let ns = previousSpeed(s, false);
+        setGameSpeed((s: GameSpeed) => {
+          let ns = previousGameSpeed(s, false);
           setInput((i) => ({
             ...i,
             simulationSubSteps: paused ? 0 : Math.ceil(4 * ns),
@@ -385,7 +385,10 @@ export default function App() {
         // adjust brush radius
         setInput((prev) => {
           const delta = 0.1 * prev.mouseRadius * sign;
-          const nextRadius = Math.max(5, prev.mouseRadius + delta);
+          const nextRadius = Math.min(
+            Math.max(5, prev.mouseRadius + delta),
+            settings.width / 2
+          );
           const next = { ...prev, mouseRadius: nextRadius };
           return next;
         });
@@ -483,8 +486,8 @@ export default function App() {
     paused,
     setInput,
     setPaused,
-    speed,
-    setSpeed,
+    gameSpeed,
+    setGameSpeed,
     setShowControlsUI,
   ]);
 
@@ -604,8 +607,8 @@ export default function App() {
           cursorQuery={cursorQuery}
           paused={paused}
           setPaused={setPaused}
-          speed={speed}
-          setSpeed={setSpeed}
+          gameSpeed={gameSpeed}
+          setGameSpeed={setGameSpeed}
           simIndex={simIndex}
           showControlsUI={showControlsUI}
           showDebugUI={showDebugUI}
