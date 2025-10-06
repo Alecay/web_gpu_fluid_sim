@@ -167,17 +167,28 @@ fn avgFHeight(coord: vec2<u32>) -> f32 {
 
 fn isFluidBoundary(coord: vec2<u32>, epsilon : f32) -> bool
 {
-  if(abs(cellFAmount(coord)) > 0.0)
+  var fAmount = cellFAmount(coord);
+  var nAmount = 0.0;
+
+  if(abs(fAmount) > 0.0)
   {
-    if(abs(cellFAmount(vec2<u32>(coord.x - 1, coord.y))) < 1e-7) { return true; }
-    if(abs(cellFAmount(vec2<u32>(coord.x + 1, coord.y))) < 1e-7) { return true; }
-    if(abs(cellFAmount(vec2<u32>(coord.x, coord.y - 1))) < 1e-7) { return true; }
-    if(abs(cellFAmount(vec2<u32>(coord.x, coord.y + 1))) < 1e-7) { return true; }
+    nAmount = cellFAmount(vec2<u32>(coord.x - 1, coord.y));
+    if(abs(nAmount) < 1e-7 || ((nAmount < 0.0) != (fAmount < 0.0))) { return true; }
+
+    nAmount = cellFAmount(vec2<u32>(coord.x + 1, coord.y));
+    if(abs(nAmount) < 1e-7 || ((nAmount < 0.0) != (fAmount < 0.0))) { return true; }
+
+    nAmount = cellFAmount(vec2<u32>(coord.x, coord.y - 1));
+    if(abs(nAmount) < 1e-7 || ((nAmount < 0.0) != (fAmount < 0.0))) { return true; }
+
+    nAmount = cellFAmount(vec2<u32>(coord.x, coord.y + 1));
+    if(abs(nAmount) < 1e-7 || ((nAmount < 0.0) != (fAmount < 0.0))) { return true; }
   }
   else { return false; }
 
   let h = fHeight(coord);
   var count = 0.0;
+
   if(abs(h - fHeight(vec2<u32>(coord.x - 1, coord.y))) > epsilon) { count += 1.0; }
   if(abs(h - fHeight(vec2<u32>(coord.x + 1, coord.y))) > epsilon) { count += 1.0; }
   if(abs(h - fHeight(vec2<u32>(coord.x, coord.y - 1))) > epsilon) { count += 1.0; }
