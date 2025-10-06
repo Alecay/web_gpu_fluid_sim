@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from "react";
+import { CursorQuery } from "@/interfaces/CursorQuery";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Button, ButtonGroup, Card } from "react-bootstrap";
 import { HouseFill, Flower1, Hammer, ShieldFill } from "react-bootstrap-icons";
 
@@ -16,6 +17,7 @@ export type BuildMenuTab = {
   label?: string;
   content?: React.ReactNode;
   disabled?: boolean;
+  hotkey?: string;
 };
 
 export type BuildMenuPanelProps = {
@@ -24,6 +26,10 @@ export type BuildMenuPanelProps = {
   onTabChange?: (nextKey: string | null) => void;
   panelHeight?: number; // height of the CONTENT area beneath the tabs (px)
   className?: string;
+  children?: React.ReactNode;
+  closeOnOutsideClick?: boolean; // closes panel when clicking outside the dock
+  closeOnEscape?: boolean; // closes panel on Escape key
+  hotkey?: string;
 };
 
 export default function BuildMenuPanel({
@@ -32,24 +38,40 @@ export default function BuildMenuPanel({
   onTabChange,
   panelHeight = 150,
   className,
+  children,
+  closeOnEscape = true,
+  closeOnOutsideClick = true,
+  hotkey = "b",
 }: BuildMenuPanelProps) {
   const defaultTabs = useMemo<BuildMenuTab[]>(
     () => [
-      { key: "home", icon: <HouseFill />, label: "Home" },
-      { key: "grow", icon: <Flower1 />, label: "Grow" },
-      { key: "build", icon: <Hammer />, label: "Build" },
-      { key: "defend", icon: <ShieldFill />, label: "Defend" },
+      { key: "home", icon: <HouseFill />, label: "Home", hotkey: "h" },
+      { key: "grow", icon: <Flower1 />, label: "Grow", hotkey: "g" },
+      { key: "build", icon: <Hammer />, label: "Build", hotkey: "c" },
+      { key: "defend", icon: <ShieldFill />, label: "Defend", hotkey: "x" },
     ],
     []
   );
 
   const _tabs = tabs?.length ? tabs : defaultTabs;
   const [activeKey, setActiveKey] = useState<string | null>(initialActiveKey);
+  const dockRef = useRef<HTMLDivElement | null>(null);
+  const [lastKey, setLastKey] = useState<string | null>(initialActiveKey);
 
   const toggle = (key: string) => {
     const next = activeKey === key ? null : key;
     setActiveKey(next);
     onTabChange?.(next);
+    if (next != null) setLastKey(next);
+  };
+
+  const openLastKey = () => {
+    if (lastKey != null) toggle(lastKey);
+  };
+
+  const closePanel = () => {
+    setActiveKey(null);
+    onTabChange?.(null);
   };
 
   // Visual constants
@@ -57,6 +79,43 @@ export default function BuildMenuPanel({
   const buttonWidth = 44;
   const buttonHeight = 44;
   const buttonMargin = 2.5;
+
+  // Close on click outside (capture phase so game canvas stopPropagation won't block it)
+  useEffect(() => {
+    if (!closeOnOutsideClick) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (!activeKey) return; // already closed
+      const target = e.target as Node | null;
+      if (!target) return;
+      const host = dockRef.current;
+      if (!host) return;
+      if (!host.contains(target)) {
+        setActiveKey(null);
+        onTabChange?.(null);
+      }
+    };
+    window.addEventListener("pointerdown", onPointerDown, true);
+    return () => window.removeEventListener("pointerdown", onPointerDown, true);
+  }, [activeKey, closeOnOutsideClick, onTabChange]);
+
+  // Close on Escape
+  useEffect(() => {
+    // if (!closeOnEscape) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && activeKey) {
+        closePanel();
+      } else if (e.key === hotkey) {
+        if (!activeKey) openLastKey();
+        else if (activeKey) closePanel();
+      } else {
+        _tabs.forEach((tab) => {
+          if (e.key == tab.hotkey) toggle(tab.key);
+        });
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [activeKey, closeOnEscape, onTabChange]);
 
   return (
     <>
@@ -79,6 +138,7 @@ export default function BuildMenuPanel({
       >
         {/* DOCK: contains tabs + sliding content. We slide the whole dock by panelHeight when closed, so tabs remain visible. */}
         <div
+          ref={dockRef}
           style={{
             position: "absolute",
             left: 0,
@@ -110,7 +170,10 @@ export default function BuildMenuPanel({
               // boxShadow: "0 -4px 12px rgba(0,0,0,.35)",
             }}
           >
-            <ButtonGroup>
+            <ButtonGroup
+              style={{ display: "inline-flex", alignItems: "flex-end" }}
+              onMouseDown={(e) => e.preventDefault()}
+            >
               {_tabs.map((t) => {
                 const selected = activeKey === t.key;
                 return (
@@ -118,21 +181,27 @@ export default function BuildMenuPanel({
                     className="tabButton"
                     key={t.key}
                     onClick={() => !t.disabled && toggle(t.key)}
-                    variant={selected ? "warning" : "dark"}
+                    // variant={selected ? "warning" : "dark"}
                     disabled={t.disabled}
                     style={{
                       borderTop: "solid white 4px",
                       borderLeft: "solid white 4px",
                       borderRight: "solid white 4px",
+                      borderBottom: "none",
                       borderRadius: "0px 0px 0px 0px",
                       width: buttonWidth,
-                      height: buttonHeight,
+                      height: selected ? buttonHeight * 2 : buttonHeight,
                       margin: `0px ${buttonMargin}px`,
-                      display: "grid",
-                      placeItems: "center",
-                      boxShadow: selected
-                        ? "0 0 0 2px rgba(0,0,0,.5) inset, 0 4px 10px rgba(0,0,0,.35)"
-                        : "0 2px 6px rgba(0,0,0,.35)",
+                      //   display: "grid",
+                      //   placeItems: "center",
+                      //   boxShadow: selected
+                      //     ? "0 0 0 2px rgba(0,0,0,.5) inset, 0 4px 10px rgba(0,0,0,.35)"
+                      //     : "0 2px 6px rgba(0,0,0,.35)",
+                      backgroundColor: "rgba(0,0,0,.35)",
+                      background: "none",
+                      display: "inline-flex",
+                      alignItems: "flex-start",
+                      outline: "none !important",
                     }}
                     aria-label={t.label}
                     title={t.label}
@@ -188,6 +257,9 @@ export default function BuildMenuPanel({
               )}
             </Card.Body>
           </Card>
+          <div style={{ position: "relative", bottom: panelHeight }}>
+            {children}
+          </div>
         </div>
       </div>
     </>

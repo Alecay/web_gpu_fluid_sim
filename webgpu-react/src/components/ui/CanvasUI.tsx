@@ -60,20 +60,9 @@ export default function CanvasUI({
       }}
     >
       <div id="output" />
-      <MapCoordDisplay input={input} />
+
       {showControlsUI && <ControlsUI />}
-      <GameSpeedControlsUI
-        gameSpeed={gameSpeed}
-        paused={paused}
-        onChange={({ paused, gameSpeed }) => {
-          setPaused(paused);
-          setGameSpeed(gameSpeed);
-          setInput({
-            ...input,
-            simulationSubSteps: paused ? 0 : Math.ceil(4 * gameSpeed),
-          });
-        }}
-      />
+
       <div
         style={{
           position: "absolute",
@@ -89,19 +78,22 @@ export default function CanvasUI({
         />
       </div>
 
-      {/* <div
-        style={{
-          position: "absolute",
-          bottom: "1px",
-          left: "50%",
-          transform: "translate(-50%, 0%)",
-          pointerEvents: "all",
-        }}
-      >
-        <HotbarUI />
-      </div> */}
-      <HeightDisplay cursorQuery={cursorQuery} />
-      <BuildMenuPanel />
+      <BuildMenuPanel>
+        <MapCoordDisplay input={input} />
+        <GameSpeedControlsUI
+          gameSpeed={gameSpeed}
+          paused={paused}
+          onChange={({ paused, gameSpeed }) => {
+            setPaused(paused);
+            setGameSpeed(gameSpeed);
+            setInput({
+              ...input,
+              simulationSubSteps: paused ? 0 : Math.ceil(4 * gameSpeed),
+            });
+          }}
+        />
+        <HeightDisplay cursorQuery={cursorQuery} />
+      </BuildMenuPanel>
       {/* Opens on Escape by default; press Esc again to close (Modal's keyboard close) */}
       {/* <HotkeyModal title="Debug Menu" size="xl">
         <NoiseSettingsForm

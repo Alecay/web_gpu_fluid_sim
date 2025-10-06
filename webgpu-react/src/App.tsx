@@ -94,7 +94,12 @@ export default function App() {
   const lastClientPosRef = useRef<{ x: number; y: number } | null>(null);
 
   const updateMouseFromClient = useCallback(
-    (clientX?: number, clientY?: number, markMoved = false) => {
+    (
+      clientX?: number,
+      clientY?: number,
+      target?: EventTarget | null,
+      markMoved = false
+    ) => {
       const canvas = canvasRef.current;
       if (!canvas) return;
 
@@ -132,6 +137,7 @@ export default function App() {
           ...prev,
           mousePosition: { x: nx, y: ny },
           mouseMoved: markMoved,
+          cursorVisible: target == null || target == canvasRef.current,
         };
         // webHandleRef.current?.updateInputBuffer?.(next);
         return next;
@@ -411,7 +417,7 @@ export default function App() {
 
     function onMouseMove(e: MouseEvent) {
       lastClientPosRef.current = { x: e.clientX, y: e.clientY };
-      updateMouseFromClient(e.clientX, e.clientY, true); // markMoved = true
+      updateMouseFromClient(e.clientX, e.clientY, e.target, true); // markMoved = true
     }
 
     const onMouseDown = (e: MouseEvent) => {

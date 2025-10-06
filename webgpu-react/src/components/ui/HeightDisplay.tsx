@@ -59,7 +59,7 @@ export default function HeightDisplay({ cursorQuery }: HeightDisplayProps) {
               ? "rgba(196, 196, 199, 1)"
               : "rgba(26, 39, 187, 1)",
           position: "relative",
-          borderRadius: "5px 5px 0px 0px",
+          borderRadius: "0px",
         }}
       >
         <div
