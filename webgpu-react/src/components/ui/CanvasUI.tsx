@@ -10,6 +10,8 @@ import GameSpeedControlsUI, { GameSpeed } from "./GameSpeedControlsUI";
 import React, { useEffect, useState } from "react";
 import { fps } from "../../interfaces/FPSMeter";
 import DebugStatsUI from "./DebugStatsUI";
+import HotbarUI from "./HotbarUI";
+import BuildMenuPanel from "./BuildMenuPanel";
 
 interface CanvasUIProps {
   settings: NoiseUISettings;
@@ -96,31 +98,10 @@ export default function CanvasUI({
           pointerEvents: "all",
         }}
       >
-        <Tabs
-          defaultActiveKey="profile"
-          id="uncontrolled-tab-example"
-          style={{ color: "black" }}
-        >
-          <Tab
-            eventKey="home"
-            title="Home"
-            style={{
-              backgroundColor: "slategray",
-              padding: "10px",
-              color: "black",
-              minHeight: "100px",
-              pointerEvents: "none",
-              userSelect: "none",
-            }}
-          >
-            Tab content for Home
-          </Tab>
-          <Tab eventKey="profile" title="Profile">
-            Tab content for Profile
-          </Tab>
-        </Tabs>
+        <HotbarUI />
       </div> */}
       <HeightDisplay cursorQuery={cursorQuery} />
+      <BuildMenuPanel />
       {/* Opens on Escape by default; press Esc again to close (Modal's keyboard close) */}
       {/* <HotkeyModal title="Debug Menu" size="xl">
         <NoiseSettingsForm
