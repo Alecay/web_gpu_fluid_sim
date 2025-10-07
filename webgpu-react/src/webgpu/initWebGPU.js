@@ -11,6 +11,7 @@ import { createOrUpdateInputBuffer } from "./buffers/inputBuffer";
 import { getBindings } from "./bindingGroups";
 import { inputsEqual } from "../interfaces/Input";
 import { fps } from "../interfaces/FPSMeter";
+import { loadImagePixelsF32 } from "../helpers/imageHelpers";
 
 /**
  * @param {HTMLCanvasElement | null} canvas
@@ -36,6 +37,9 @@ export async function initWebGPU(
     canvas.__wgpuCleanup(); // stop old RAF, remove listeners
   }
 
+  const pixels = await loadImagePixelsF32("public/sprites/Tower.png");
+  console.log(pixels.data);
+
   const isDevBuid = false; //import.meta.env.DEV;
 
   var updateNormals = true;
@@ -44,6 +48,12 @@ export async function initWebGPU(
 
   const device = await getDevice();
   // console.log("Using WebGPU device:", device.__id);
+  console.log(
+    "Max texture size: ",
+    device.limits.maxTextureDimension2D,
+    "current size: ",
+    noiseSettings.width * noiseSettings.pixelScale
+  );
 
   const context = canvas.getContext("webgpu");
   const format = navigator.gpu.getPreferredCanvasFormat();
@@ -53,8 +63,8 @@ export async function initWebGPU(
   // Tag the context with this device id so we can assert later
   context.__deviceId = device.__id;
 
-  canvas.width = noiseSettings.width;
-  canvas.height = noiseSettings.height;
+  canvas.width = noiseSettings.width * noiseSettings.pixelScale;
+  canvas.height = noiseSettings.height * noiseSettings.pixelScale;
 
   context.configure({
     device,
@@ -88,6 +98,7 @@ export async function initWebGPU(
     time: 0,
     simIndex: 0,
     showDebug,
+    pixelScale: noiseSettings.pixelScale,
   });
 
   function updateViewBuffer() {
@@ -99,6 +110,7 @@ export async function initWebGPU(
         time: currentTime,
         simIndex,
         showDebug,
+        pixelScale: noiseSettings.pixelScale,
       },
       viewUniformBuffer
     );

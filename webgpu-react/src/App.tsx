@@ -114,8 +114,8 @@ export default function App() {
       const rect = canvas.getBoundingClientRect();
       if (rect.width === 0 || rect.height === 0) return;
 
-      const sx = canvas.width / rect.width;
-      const sy = canvas.height / rect.height;
+      const sx = canvas.width / settings.pixelScale / rect.width;
+      const sy = canvas.height / settings.pixelScale / rect.height;
 
       const mx = Math.floor((pos.x - rect.left) * sx);
       const my = Math.floor((pos.y - rect.top) * sy);
@@ -143,7 +143,7 @@ export default function App() {
         return next;
       });
     },
-    [settings.width, settings.height]
+    [settings.width, settings.height, settings.pixelScale]
   );
 
   const toCanvasPosition = useCallback(
@@ -156,8 +156,8 @@ export default function App() {
       const rect = canvas.getBoundingClientRect();
       if (rect.width === 0 || rect.height === 0) return { x: 0, y: 0 };
 
-      const sx = canvas.width / rect.width;
-      const sy = canvas.height / rect.height;
+      const sx = canvas.width / settings.pixelScale / rect.width;
+      const sy = canvas.height / settings.pixelScale / rect.height;
 
       const mx = Math.floor((pos.x - rect.left) * sx);
       const my = Math.floor((pos.y - rect.top) * sy);
@@ -166,7 +166,7 @@ export default function App() {
       const ny = clamp(my, 0, settings.height - 1);
       return { x: nx, y: ny };
     },
-    [settings.width, settings.height]
+    [settings.width, settings.height, settings.pixelScale]
   );
 
   // move canvas effect

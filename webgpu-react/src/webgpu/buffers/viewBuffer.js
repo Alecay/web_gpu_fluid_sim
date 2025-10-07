@@ -14,6 +14,7 @@ export const ViewLayout = defineStructLayout([
   { name: "time", type: "f32" },
   { name: "simIndex", type: "u32" },
   { name: "showDebug", type: "u32" },
+  { name: "pixelScale", type: "u32" },
   // padding
 ]);
 
@@ -24,7 +25,8 @@ export const ViewLayout = defineStructLayout([
  *   height : number,
  *   time : number,
  *   simIndex: number,
- *   showDebug: boolean
+ *   showDebug: boolean,
+ *   pixelScale : number,
  * }} settings
  * @param {GPUBuffer=} existing
  */
@@ -34,6 +36,7 @@ export function createOrUpdateViewBuffer(device, settings, existing) {
     time: settings.time,
     simIndex: settings.simIndex,
     showDebug: settings.showDebug ? 1 : 0,
+    pixelScale: settings.pixelScale,
   };
 
   return createOrUpdateBuffer(

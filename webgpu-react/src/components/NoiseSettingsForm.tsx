@@ -28,6 +28,7 @@ export interface NoiseUISettings {
   fractalType: FractalType;
   frequency: number;
 
+  pixelScale: number;
   width: number;
   height: number;
   maxCellValue: number; // e.g., 100
@@ -48,6 +49,7 @@ export const defaultNoiseUISettings: NoiseUISettings = {
   fractalType: "FBm",
   frequency: 0.003,
 
+  pixelScale: 4,
   // width: 1920, // 960,
   // height: 1080, // 540,
   width: 960,
