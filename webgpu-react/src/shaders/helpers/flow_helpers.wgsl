@@ -46,17 +46,13 @@ fn highestNeighborIndex(coord: vec2<i32>) -> u32
 	var maxValue : f32 = -1.0;
 	var j : u32 = 0;
 	
-    // cycle index? this steps index [0-8]
-    //var cycleIndex : u32 = uView.simIndex % 8;
-
-    // get random starting index based on randomDirectionsBuffer values
-	//var cIndex : u32 = (cycleIndex + u32(randomDirectionsBuffer[idx(u32(coord.x), u32(coord.y))])) % 8;
+	let cell = currentCells[idx(u32(coord.x), u32(coord.y))];
 
 	// using an odd multiplier (3, 5, or 7 all work). 3 is a good default.
 	let cycleIndex : u32 = (uView.simIndex * 3u) % 8u;
 
-	// keep your existing per-cell offset (randomDirectionsBuffer), but mod 8 explicitly
-	let baseOffset : u32 = u32(randomDirectionsBuffer[idx(u32(coord.x), u32(coord.y))]) % 8u;
+	// keep your existing per-cell offset
+	let baseOffset : u32 = cell.randDir % 8;
 
 	// final start index
 	let cIndex     : u32 = (cycleIndex + baseOffset) % 8u;
@@ -88,17 +84,13 @@ fn lowestNeighborIndex(coord: vec2<i32>) -> u32
 	var minValue : f32 = -1.0;
 	var j : u32 = 0;
 	
-    // cycle index? this steps index [0-8]
-    // var cycleIndex : u32 = uView.simIndex % 8;
-
-    // get random starting index based on randomDirectionsBuffer values
-	// var cIndex : u32 = (cycleIndex + u32(randomDirectionsBuffer[idx(u32(coord.x), u32(coord.y))])) % 8;
+	let cell = currentCells[idx(u32(coord.x), u32(coord.y))];
 
 	// using an odd multiplier (3, 5, or 7 all work). 3 is a good default.
 	let cycleIndex : u32 = (uView.simIndex * 3u) % 8u;
 
-	// keep your existing per-cell offset (randomDirectionsBuffer), but mod 8 explicitly
-	let baseOffset : u32 = u32(randomDirectionsBuffer[idx(u32(coord.x), u32(coord.y))]) % 8u;
+	// keep your existing per-cell offset
+	let baseOffset : u32 = cell.randDir % 8;
 
 	// final start index
 	let cIndex     : u32 = (cycleIndex + baseOffset) % 8u;

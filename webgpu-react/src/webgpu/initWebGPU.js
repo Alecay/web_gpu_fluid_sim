@@ -202,6 +202,7 @@ export async function initWebGPU(
   const outputTexLayers = 4;
   const outputTexSize =
     noiseSettings.width * noiseSettings.height * 4 * 4 * outputTexLayers;
+
   // Create output texture buffer
   const outputTextureBuffer = device.createBuffer({
     label: "Output Texture",
@@ -330,6 +331,7 @@ export async function initWebGPU(
     for (let index = 0; index < noiseData.length; index++) {
       const cellIndex = index * FLOATS_PER_CELL;
       init[cellIndex] = noiseData[index] * 100.0;
+      init[cellIndex + 3] = Math.floor(Math.random() * (7 - 0 + 1)) + 0; // set random dir
     }
 
     device.queue.writeBuffer(prevCellsBuffer, 0, init);
@@ -368,21 +370,6 @@ export async function initWebGPU(
     usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
   });
 
-  const randomFlowDirectionsBuffer = device.createBuffer({
-    label: "Random Flow Directions Buffer",
-    size: 4 * noiseSettings.width * noiseSettings.height,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-  });
-
-  const randomDirections = new Float32Array(
-    noiseSettings.width * noiseSettings.height
-  );
-
-  for (let i = 0; i < randomDirections.length; i++) {
-    randomDirections[i] = Math.floor(Math.random() * (7 - 0 + 1)) + 0;
-  }
-  device.queue.writeBuffer(randomFlowDirectionsBuffer, 0, randomDirections);
-
   // // ----- Bind group layouts -----
   const bindings = getBindings(device, module, format, {
     prevCellsBuffer,
@@ -394,7 +381,6 @@ export async function initWebGPU(
     outputTextureBuffer,
     cursorQueryBuffer,
     chunkDataBuffer,
-    randomFlowDirectionsBuffer,
     subPixelTextureBuffer,
     spriteDataBuffer,
     spriteColorsBuffer,

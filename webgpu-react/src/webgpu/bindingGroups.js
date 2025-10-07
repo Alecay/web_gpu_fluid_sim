@@ -35,23 +35,18 @@ export function getBindings(device, module, format, buffers) {
       type: "storage",
       buffer: buffers.nextCellsBuffer,
     },
-    randomDirections: {
-      binding: 7,
-      type: "read-only-storage",
-      buffer: buffers.randomFlowDirectionsBuffer,
-    },
     cursorQuery: {
-      binding: 8,
+      binding: 7,
       type: "storage",
       buffer: buffers.cursorQueryBuffer,
     },
     chunkData: {
-      binding: 9,
+      binding: 8,
       type: "storage",
       buffer: buffers.chunkDataBuffer,
     },
     subPixelTex: {
-      binding: 10,
+      binding: 9,
       type: "storage",
       buffer: buffers.subPixelTextureBuffer,
     },
