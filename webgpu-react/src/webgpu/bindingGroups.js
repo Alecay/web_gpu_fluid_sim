@@ -50,65 +50,86 @@ export function getBindings(device, module, format, buffers) {
       type: "storage",
       buffer: buffers.chunkDataBuffer,
     },
+    subPixelTex: {
+      binding: 10,
+      type: "storage",
+      buffer: buffers.subPixelTextureBuffer,
+    },
+    // sprites: {
+    //   binding: 11,
+    //   type: "read-only-storage",
+    //   buffer: buffers.spriteDataBuffer,
+    // },
+    // spriteColors: {
+    //   binding: 12,
+    //   type: "read-only-storage",
+    //   buffer: buffers.spriteColorsBuffer,
+    // },
   };
 
   const unifiedComputeBGL = device.createBindGroupLayout({
     label: "Unified Compute BGL",
-    entries: Object.keys(bufferSettings).map((key) => ({
-      binding: bufferSettings[key].binding,
-      visibility: GPUShaderStage.COMPUTE,
-      buffer: { type: bufferSettings[key].type },
-    })),
+    entries: Object.keys(bufferSettings)
+      .filter((k) => !["sprite", "spriteColors"].includes(k))
+      .map((key) => ({
+        binding: bufferSettings[key].binding,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: { type: bufferSettings[key].type },
+      })),
   });
 
   const unifiedComputeBG_A = device.createBindGroup({
     label: "Unified Compute BG A",
     layout: unifiedComputeBGL,
-    entries: Object.keys(bufferSettings).map((key) => {
-      if (key === "currentCells") {
-        return {
-          binding: bufferSettings.currentCells.binding,
-          resource: { buffer: buffers.prevCellsBuffer },
-        };
-      }
+    entries: Object.keys(bufferSettings)
+      .filter((k) => !["sprites", "spriteColors"].includes(k))
+      .map((key) => {
+        if (key === "currentCells") {
+          return {
+            binding: bufferSettings.currentCells.binding,
+            resource: { buffer: buffers.prevCellsBuffer },
+          };
+        }
 
-      if (key === "nextCells") {
-        return {
-          binding: bufferSettings.nextCells.binding,
-          resource: { buffer: buffers.nextCellsBuffer },
-        };
-      }
+        if (key === "nextCells") {
+          return {
+            binding: bufferSettings.nextCells.binding,
+            resource: { buffer: buffers.nextCellsBuffer },
+          };
+        }
 
-      return {
-        binding: bufferSettings[key].binding,
-        resource: { buffer: bufferSettings[key].buffer },
-      };
-    }),
+        return {
+          binding: bufferSettings[key].binding,
+          resource: { buffer: bufferSettings[key].buffer },
+        };
+      }),
   });
 
   const unifiedComputeBG_B = device.createBindGroup({
     label: "Unified Compute BG show B",
     layout: unifiedComputeBGL,
-    entries: Object.keys(bufferSettings).map((key) => {
-      if (key === "currentCells") {
-        return {
-          binding: bufferSettings.currentCells.binding,
-          resource: { buffer: buffers.nextCellsBuffer },
-        };
-      }
+    entries: Object.keys(bufferSettings)
+      .filter((k) => !["sprites", "spriteColors"].includes(k))
+      .map((key) => {
+        if (key === "currentCells") {
+          return {
+            binding: bufferSettings.currentCells.binding,
+            resource: { buffer: buffers.nextCellsBuffer },
+          };
+        }
 
-      if (key === "nextCells") {
-        return {
-          binding: bufferSettings.nextCells.binding,
-          resource: { buffer: buffers.prevCellsBuffer },
-        };
-      }
+        if (key === "nextCells") {
+          return {
+            binding: bufferSettings.nextCells.binding,
+            resource: { buffer: buffers.prevCellsBuffer },
+          };
+        }
 
-      return {
-        binding: bufferSettings[key].binding,
-        resource: { buffer: bufferSettings[key].buffer },
-      };
-    }),
+        return {
+          binding: bufferSettings[key].binding,
+          resource: { buffer: bufferSettings[key].buffer },
+        };
+      }),
   });
 
   // Render: 0=uniform, 1=current(read) for fragment
@@ -129,6 +150,11 @@ export function getBindings(device, module, format, buffers) {
         binding: bufferSettings.outputTex.binding,
         visibility: GPUShaderStage.FRAGMENT,
         buffer: { type: bufferSettings.outputTex.type },
+      },
+      {
+        binding: bufferSettings.subPixelTex.binding,
+        visibility: GPUShaderStage.FRAGMENT,
+        buffer: { type: bufferSettings.subPixelTex.type },
       },
     ],
   });
@@ -217,6 +243,15 @@ export function getBindings(device, module, format, buffers) {
     compute: { module, entryPoint: "debug_render" },
   });
 
+  const spriteRenderComputePipeline = device.createComputePipeline({
+    label: "Sprite Render Compute Pipeline",
+    layout: device.createPipelineLayout({
+      bindGroupLayouts: [unifiedComputeBGL],
+      label: "Sprite Render Compute Pipeline Layout",
+    }),
+    compute: { module, entryPoint: "sprite_render" },
+  });
+
   const stepComputePipeline = device.createComputePipeline({
     label: "Step Compute Pipeline",
     layout: device.createPipelineLayout({
@@ -244,6 +279,10 @@ export function getBindings(device, module, format, buffers) {
         binding: bufferSettings.outputTex.binding,
         resource: { buffer: buffers.outputTextureBuffer },
       },
+      {
+        binding: bufferSettings.subPixelTex.binding,
+        resource: { buffer: buffers.subPixelTextureBuffer },
+      },
     ],
   });
 
@@ -258,11 +297,13 @@ export function getBindings(device, module, format, buffers) {
       shadowTextureComputePipeline,
       fluidTextureComputePipeline,
       debugTextureComputePipeline,
+      spriteRenderComputePipeline,
       stepComputePipeline,
     },
     bindGroups: {
       unifiedComputeBG_A,
       unifiedComputeBG_B,
+      // spriteComputeBG,
       renderBG,
     },
   };

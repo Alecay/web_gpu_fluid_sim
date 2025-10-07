@@ -37,9 +37,6 @@ export async function initWebGPU(
     canvas.__wgpuCleanup(); // stop old RAF, remove listeners
   }
 
-  const pixels = await loadImagePixelsF32("public/sprites/Tower.png");
-  console.log(pixels.data);
-
   const isDevBuid = false; //import.meta.env.DEV;
 
   var updateNormals = true;
@@ -218,6 +215,83 @@ export async function initWebGPU(
     new Float32Array(outputTexSize / 4)
   );
 
+  const subPixelTexSize =
+    noiseSettings.width *
+    noiseSettings.height *
+    4 *
+    4 *
+    noiseSettings.pixelScale *
+    noiseSettings.pixelScale;
+  // Create output texture buffer
+  const subPixelTextureBuffer = device.createBuffer({
+    label: "Sub-Pixel Texture",
+    size: subPixelTexSize, // width * height * 4 bytes per float * 4 floats * pixelScale
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+  });
+
+  const subPixelData = new Float32Array(subPixelTexSize / 4);
+  // for (let i = 0; i < subPixelData.length; i++) {
+  //   if (i % 4 == 0) subPixelData[i] = 1.0;
+  //   if (i % 4 == 3) subPixelData[i] = 0.5;
+  // }
+
+  device.queue.writeBuffer(subPixelTextureBuffer, 0, subPixelData);
+
+  const spritePaths = [
+    "./sprites/Tower.png",
+    "./sprites/tree001.png",
+    "./sprites/tree002.png",
+  ];
+  const spriteData = await Promise.all(
+    spritePaths.map(async (path, index) => {
+      const { width, height, data } = await loadImagePixelsF32(path);
+      return {
+        path,
+        width,
+        height,
+        data,
+        index,
+      };
+    })
+  );
+
+  let spritePixelCount = 0;
+  for (let i = 0; i < spriteData.length; i++) {
+    spriteData[i] = { ...spriteData[i], colorStart: spritePixelCount };
+    spritePixelCount += spriteData[i].width * spriteData[i].height;
+  }
+
+  const spriteDataBuffer = device.createBuffer({
+    label: "Sprite Data",
+    size: spriteData.length * 4 * 4, // 4 floats per sprite
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+  });
+
+  const spriteDataF32 = new Float32Array(spriteData.length * 4);
+  for (let i = 0; i < spriteData.length; i++) {
+    spriteDataF32[i * 4 + 0] = spriteData[i].width;
+    spriteDataF32[i * 4 + 1] = spriteData[i].height;
+    spriteDataF32[i * 4 + 2] = spriteData[i].colorStart;
+    //spriteDataF32[i * 4 + 0] = spriteData[i].width;
+  }
+
+  device.queue.writeBuffer(spriteDataBuffer, 0, spriteDataF32);
+
+  const spriteColorsBuffer = device.createBuffer({
+    label: "Sprite Colors",
+    size: spritePixelCount * 4 * 4, // 4 floats per sprite
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+  });
+
+  const spriteColorsF32 = new Float32Array(spritePixelCount * 4);
+  for (let i = 0; i < spriteData.length; i++) {
+    for (let j = 0; j < spriteData[i].data.length; j++) {
+      spriteColorsF32[spriteData[i].colorStart + j] = spriteData[i].data[j];
+    }
+  }
+
+  device.queue.writeBuffer(spriteColorsBuffer, 0, spriteColorsF32);
+
   // ----- Storage buffers (vec4f per cell => 16 bytes) -----
   const FLOATS_PER_CELL = 12;
   const BYTES_PER_CELL = 4 * FLOATS_PER_CELL;
@@ -321,6 +395,9 @@ export async function initWebGPU(
     cursorQueryBuffer,
     chunkDataBuffer,
     randomFlowDirectionsBuffer,
+    subPixelTextureBuffer,
+    spriteDataBuffer,
+    spriteColorsBuffer,
   });
 
   // ----- Render pass descriptor (no explicit typing) -----
@@ -485,7 +562,7 @@ export async function initWebGPU(
       input = { ...input, visibleRectChanged: false };
     }
 
-    if (frameIdx % 10 == 0) {
+    if (frameIdx % 10 == 0 && showDebug) {
       const debugRenderPass = encoder.beginComputePass({
         label: "Debug Texture Compute Pass",
       });
@@ -501,6 +578,18 @@ export async function initWebGPU(
       debugRenderPass.dispatchWorkgroups(dispatchX, dispatchY, 1);
       debugRenderPass.end();
     }
+
+    // if (frameIdx % 10 == 0) {
+    //   const spriteRenderPass = encoder.beginComputePass({
+    //     label: "Sprite Render Compute Pass",
+    //   });
+    //   spriteRenderPass.setPipeline(
+    //     bindings.piplines.spriteRenderComputePipeline
+    //   );
+    //   spriteRenderPass.setBindGroup(0, bindings.bindGroups.spriteComputeBG);
+    //   spriteRenderPass.dispatchWorkgroups(1, 1, 1);
+    //   spriteRenderPass.end();
+    // }
 
     // query
     if (preformQuery) {

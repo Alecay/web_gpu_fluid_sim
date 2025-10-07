@@ -1,3 +1,5 @@
+// Uses: uView, uTerrain, uInput, outputTex
+
 @fragment
 fn fs(@builtin(position) frag_pos: vec4f) -> @location(0) vec4f {
     let pixelScale : u32 = uView.pixelScale;
@@ -23,6 +25,8 @@ fn fs(@builtin(position) frag_pos: vec4f) -> @location(0) vec4f {
     let fluidColor = outputTex[idx(x,y) + uView.size.x * uView.size.y * 2];
     let debugColor = outputTex[idx(x,y) + uView.size.x * uView.size.y * 3];
 
+    var subPixelColor = subPixelTex[canvasX + (uView.size.x * pixelScale) * canvasY];
+
     let mouseWidth  = 2.0;
     let inOuter = inside_circle(coord, uInput.mousePos, uInput.mouseRadius);
     let inInner = inside_circle(coord, uInput.mousePos, uInput.mouseRadius - mouseWidth);
@@ -42,6 +46,7 @@ fn fs(@builtin(position) frag_pos: vec4f) -> @location(0) vec4f {
 
     var combinedColor = vec4f(0.0, 0.0, 0.0, 0.0);
     combinedColor = over_rgba(combinedColor, terrainColor);
+    combinedColor = over_rgba(combinedColor, subPixelColor);
     combinedColor = over_rgba(combinedColor, shadowColor);
     combinedColor = over_rgba(combinedColor, fluidColor);
     combinedColor = over_rgba(combinedColor, cursorOutline);

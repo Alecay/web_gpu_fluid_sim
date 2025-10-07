@@ -1,3 +1,5 @@
+// Uses: uView, uTerrain, chunkData, currentCells
+
 @compute @workgroup_size(1, 1, 1)
 fn chunk_data_calc(@builtin(global_invocation_id) gid : vec3<u32>) {
     let chunkX = gid.x;
@@ -168,42 +170,6 @@ fn chunk_data_calc(@builtin(global_invocation_id) gid : vec3<u32>) {
         }
         left += 1u;
     }
-
-    // loop {
-    //     if (y >= endY) { break; }
-    //     var x = startX;
-    //     loop {
-    //         if (x >= endX) { break; }
-    //         let c = currentCells[idx(x, y)];
-    //         let v = c.fAmount;
-    //         if (v > 0.0) {
-    //             fluidTotal += v;
-    //         } else {
-    //             anitFluidTotal -= v; // add magnitude of negative
-    //         }
-
-    //         if(v > fluidMax)
-    //         {
-    //             maxFI = currentI;
-    //             fluidMax = v;
-    //         }
-
-    //         if(v < aFluidMax || (currentI == 0i && v < 0.0))
-    //         {
-    //             maxAFI = currentI;
-    //             aFluidMax = v;
-    //         }
-
-    //         if(allSameF && abs(startingCellFValue - v) > 0.1)
-    //         {
-    //             allSameF = false;
-    //         }
-
-    //         x = x + 1u;
-    //         currentI++;
-    //     }
-    //     y = y + 1u;
-    // }
 
     let chunkIdx = chunkX + chunkY * numChunks.x;
     chunkData[chunkIdx].fluidTotal       = fluidTotal;
