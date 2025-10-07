@@ -201,7 +201,7 @@ export async function initWebGPU(
 
   const outputTexLayers = 4;
   const outputTexSize =
-    noiseSettings.width * noiseSettings.height * 4 * 4 * outputTexLayers;
+    noiseSettings.width * noiseSettings.height * 4 * outputTexLayers;
 
   // Create output texture buffer
   const outputTextureBuffer = device.createBuffer({
@@ -220,7 +220,6 @@ export async function initWebGPU(
     noiseSettings.width *
     noiseSettings.height *
     4 *
-    4 *
     noiseSettings.pixelScale *
     noiseSettings.pixelScale;
   // Create output texture buffer
@@ -232,7 +231,7 @@ export async function initWebGPU(
 
   const subPixelData = new Float32Array(subPixelTexSize / 4);
   // for (let i = 0; i < subPixelData.length; i++) {
-  //   if (i % 4 == 0) subPixelData[i] = 1.0;
+  //   // if (i % 4 == 0) subPixelData[i] = 1.0;
   //   if (i % 4 == 3) subPixelData[i] = 0.5;
   // }
 

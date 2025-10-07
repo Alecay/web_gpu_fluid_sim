@@ -25,7 +25,7 @@ fn fluid_render(@builtin(global_invocation_id) gid : vec3<u32>) {
     let chunk = getChunk(getChunkPos(coord, chunkSize), chunkSize);
     if(chunk.fluidTotal < 1e-7 && chunk.anitFluidTotal < 1e-7)
     {
-        outputTex[idx(x,y) + idOffset] = clear;
+        outputTex[idx(x,y) + idOffset] = pack4x8unorm(clear);
         return;
     }
 
@@ -59,5 +59,5 @@ fn fluid_render(@builtin(global_invocation_id) gid : vec3<u32>) {
     
 
 
-    outputTex[idx(x,y) + idOffset] = finalColor;
+    outputTex[idx(x,y) + idOffset] = pack4x8unorm(finalColor);
 }

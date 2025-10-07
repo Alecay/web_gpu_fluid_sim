@@ -55,5 +55,5 @@ fn shadow_render(@builtin(global_invocation_id) gid : vec3<u32>) {
 
 
     let idOffset = uView.size.x * uView.size.y;
-    outputTex[idx(x,y) + idOffset] = finalColor;
+    outputTex[idx(x,y) + idOffset] = pack4x8unorm(finalColor);
 }

@@ -7,5 +7,5 @@ fn terrain_render(@builtin(global_invocation_id) gid : vec3<u32>) {
     let coord = vec2(x,y);
     if (x >= uView.size.x || y >= uView.size.y) { return; }
 
-    outputTex[idx(x,y)] = getTerrainColor(coord);
+    outputTex[idx(x,y)] = pack4x8unorm(getTerrainColor(coord));
 }

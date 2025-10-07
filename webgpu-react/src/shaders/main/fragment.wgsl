@@ -20,12 +20,12 @@ fn fs(@builtin(position) frag_pos: vec4f) -> @location(0) vec4f {
 
     if(!inBounds(x,y)) { return black; }
 
-    let terrainColor = outputTex[idx(x,y)];
-    let shadowColor = outputTex[idx(x,y) + uView.size.x * uView.size.y];
-    let fluidColor = outputTex[idx(x,y) + uView.size.x * uView.size.y * 2];
-    let debugColor = outputTex[idx(x,y) + uView.size.x * uView.size.y * 3];
+    let terrainColor = unpack4x8unorm(outputTex[idx(x,y)]);
+    let shadowColor = unpack4x8unorm(outputTex[idx(x,y) + uView.size.x * uView.size.y]);
+    let fluidColor = unpack4x8unorm(outputTex[idx(x,y) + uView.size.x * uView.size.y * 2]);
+    let debugColor = unpack4x8unorm(outputTex[idx(x,y) + uView.size.x * uView.size.y * 3]);
 
-    var subPixelColor = subPixelTex[canvasX + (uView.size.x * pixelScale) * canvasY];
+    var subPixelColor = unpack4x8unorm(subPixelTex[canvasX + (uView.size.x * pixelScale) * canvasY]);
 
     let mouseWidth  = 2.0;
     let inOuter = inside_circle(coord, uInput.mousePos, uInput.mouseRadius);
