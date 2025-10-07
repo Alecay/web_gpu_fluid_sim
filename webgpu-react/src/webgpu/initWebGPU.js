@@ -203,39 +203,25 @@ export async function initWebGPU(
   const outputTexSize =
     noiseSettings.width * noiseSettings.height * 4 * outputTexLayers;
 
-  // Create output texture buffer
-  const outputTextureBuffer = device.createBuffer({
-    label: "Output Texture",
-    size: outputTexSize, // width * height * 4 bytes per float * 4 floats * layers
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-  });
-
-  device.queue.writeBuffer(
-    outputTextureBuffer,
-    0,
-    new Float32Array(outputTexSize / 4)
-  );
-
   const subPixelTexSize =
     noiseSettings.width *
     noiseSettings.height *
     4 *
     noiseSettings.pixelScale *
     noiseSettings.pixelScale;
+
   // Create output texture buffer
-  const subPixelTextureBuffer = device.createBuffer({
-    label: "Sub-Pixel Texture",
-    size: subPixelTexSize, // width * height * 4 bytes per float * 4 floats * pixelScale
+  const outputTextureBuffer = device.createBuffer({
+    label: "Output Texture",
+    size: outputTexSize + subPixelTexSize, // width * height * 4 bytes per float * 4 floats * layers
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
 
-  const subPixelData = new Float32Array(subPixelTexSize / 4);
-  // for (let i = 0; i < subPixelData.length; i++) {
-  //   // if (i % 4 == 0) subPixelData[i] = 1.0;
-  //   if (i % 4 == 3) subPixelData[i] = 0.5;
-  // }
-
-  device.queue.writeBuffer(subPixelTextureBuffer, 0, subPixelData);
+  device.queue.writeBuffer(
+    outputTextureBuffer,
+    0,
+    new Float32Array((outputTexSize + subPixelTexSize) / 4)
+  );
 
   const spritePaths = [
     "./sprites/Tower.png",
@@ -380,7 +366,6 @@ export async function initWebGPU(
     outputTextureBuffer,
     cursorQueryBuffer,
     chunkDataBuffer,
-    subPixelTextureBuffer,
     spriteDataBuffer,
     spriteColorsBuffer,
   });

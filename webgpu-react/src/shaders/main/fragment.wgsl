@@ -25,7 +25,8 @@ fn fs(@builtin(position) frag_pos: vec4f) -> @location(0) vec4f {
     let fluidColor = unpack4x8unorm(outputTex[idx(x,y) + uView.size.x * uView.size.y * 2]);
     let debugColor = unpack4x8unorm(outputTex[idx(x,y) + uView.size.x * uView.size.y * 3]);
 
-    var subPixelColor = unpack4x8unorm(subPixelTex[canvasX + (uView.size.x * pixelScale) * canvasY]);
+    let layer3Index = idx(x,y) + uView.size.x * uView.size.y * 3;
+    var subPixelColor = unpack4x8unorm(outputTex[layer3Index + canvasX + (uView.size.x * pixelScale) * canvasY]);
 
     let mouseWidth  = 2.0;
     let inOuter = inside_circle(coord, uInput.mousePos, uInput.mouseRadius);

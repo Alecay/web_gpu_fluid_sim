@@ -20,20 +20,20 @@ export function getBindings(device, module, format, buffers) {
       type: "storage",
       buffer: buffers.prevCellsBuffer,
     },
-    terrainColors: {
+    nextCells: {
       binding: 4,
+      type: "storage",
+      buffer: buffers.nextCellsBuffer,
+    },
+    terrainColors: {
+      binding: 5,
       type: "read-only-storage",
       buffer: buffers.terrainColorsBuffer,
     },
     outputTex: {
-      binding: 5,
-      type: "storage",
-      buffer: buffers.outputTextureBuffer,
-    },
-    nextCells: {
       binding: 6,
       type: "storage",
-      buffer: buffers.nextCellsBuffer,
+      buffer: buffers.outputTextureBuffer,
     },
     cursorQuery: {
       binding: 7,
@@ -44,11 +44,6 @@ export function getBindings(device, module, format, buffers) {
       binding: 8,
       type: "storage",
       buffer: buffers.chunkDataBuffer,
-    },
-    subPixelTex: {
-      binding: 9,
-      type: "storage",
-      buffer: buffers.subPixelTextureBuffer,
     },
     // sprites: {
     //   binding: 11,
@@ -145,11 +140,6 @@ export function getBindings(device, module, format, buffers) {
         binding: bufferSettings.outputTex.binding,
         visibility: GPUShaderStage.FRAGMENT,
         buffer: { type: bufferSettings.outputTex.type },
-      },
-      {
-        binding: bufferSettings.subPixelTex.binding,
-        visibility: GPUShaderStage.FRAGMENT,
-        buffer: { type: bufferSettings.subPixelTex.type },
       },
     ],
   });
@@ -273,10 +263,6 @@ export function getBindings(device, module, format, buffers) {
       {
         binding: bufferSettings.outputTex.binding,
         resource: { buffer: buffers.outputTextureBuffer },
-      },
-      {
-        binding: bufferSettings.subPixelTex.binding,
-        resource: { buffer: buffers.subPixelTextureBuffer },
       },
     ],
   });
