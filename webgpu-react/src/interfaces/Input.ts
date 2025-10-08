@@ -4,6 +4,11 @@ export interface Input {
   mouse0Held: boolean;
   mouse1Held: boolean;
   mouse2Held: boolean;
+
+  mouse0Pressed: boolean;
+  mouse1Pressed: boolean;
+  mouse2Pressed: boolean;
+
   mouseRadius: number;
   mouseMoved: boolean;
   cursorVisible: boolean;
@@ -18,6 +23,9 @@ export function inputsEqual(a: Input, b: Input): boolean {
     a.mouse0Held === b.mouse0Held &&
     a.mouse1Held === b.mouse1Held &&
     a.mouse2Held === b.mouse2Held &&
+    a.mouse0Pressed === b.mouse0Pressed &&
+    a.mouse1Pressed === b.mouse1Pressed &&
+    a.mouse2Pressed === b.mouse2Pressed &&
     a.mouseRadius === b.mouseRadius &&
     a.mouseMoved === b.mouseMoved &&
     a.cursorVisible === b.cursorVisible &&
@@ -38,6 +46,9 @@ export const DefaultInput: Input = {
   mouse0Held: false,
   mouse1Held: false,
   mouse2Held: false,
+  mouse0Pressed: false,
+  mouse1Pressed: false,
+  mouse2Pressed: false,
   mouseRadius: 30,
   mouseMoved: false,
   cursorVisible: true,

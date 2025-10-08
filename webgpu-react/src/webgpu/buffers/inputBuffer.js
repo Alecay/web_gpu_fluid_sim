@@ -15,6 +15,7 @@ export const InputLayout = defineStructLayout([
   { name: "mousePos", type: "vec2u" },
   { name: "mouse0Held", type: "f32" },
   { name: "mouse1Held", type: "f32" },
+  { name: "mouse2Held", type: "f32" },
   { name: "mouseRadius", type: "f32" },
   { name: "visibleRect", type: "vec4u" },
 ]);
@@ -25,6 +26,7 @@ export const InputLayout = defineStructLayout([
  *   mousePos : {x : number, y : number},
  *   mouse0Held : boolean,
  *   mouse1Held : boolean,
+ *   mouse2Held : boolean,
  *   mouseRadius : number,
  *   visibleRect: {x0 : number, x1: number, y0: number, y1: number, width: number, height: number}
  * }} settings
@@ -35,6 +37,7 @@ export function createOrUpdateInputBuffer(device, settings, existing) {
     mousePos: [settings.mousePos.x, settings.mousePos.y],
     mouse0Held: settings.mouse0Held ? 1 : 0,
     mouse1Held: settings.mouse1Held ? 1 : 0,
+    mouse2Held: settings.mouse2Held ? 1 : 0,
     mouseRadius: settings.mouseRadius,
     visibleRect: [
       settings.visibleRect.x0,

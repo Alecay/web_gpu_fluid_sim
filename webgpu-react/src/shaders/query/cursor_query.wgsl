@@ -6,5 +6,6 @@ fn cursor_query(@builtin(global_invocation_id) gid : vec3<u32>) {
 
     let i = idx(uInput.mousePos.x, uInput.mousePos.y);
     var cell = currentCells[i];
+    cell.height = roundedCellHeight(vec2(uInput.mousePos.x, uInput.mousePos.y));
     cursorQuery.cell = cell;
 }

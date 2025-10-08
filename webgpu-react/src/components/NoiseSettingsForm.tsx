@@ -49,7 +49,7 @@ export const defaultNoiseUISettings: NoiseUISettings = {
   fractalType: "FBm",
   frequency: 0.003,
 
-  pixelScale: 4,
+  pixelScale: 2,
   // width: 1920, // 960,
   // height: 1080, // 540,
   width: 960,

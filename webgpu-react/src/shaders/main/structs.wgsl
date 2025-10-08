@@ -10,16 +10,25 @@ struct Input {
   mousePos     : vec2<u32>, // 0..1: u32 pixels
   mouse0Held   : f32,       // 2: 0/1
   mouse1Held   : f32,       // 3: 0/1
+  mouse2Held   : f32,       
   mouseRadius  : f32,       // 4
   // (12 bytes implicit padding here to align next member to 16B)
   visibleRect  : vec4<u32>, //  (x0, y0, x1, y1) in canvas coords
 };                          // total size = 48 bytes
+
+struct SpriteInfo {
+    spriteIndex : u32, // 10 bits (0..1023)
+    subPixel    : u32, // 12 bits (e.g., 6+6 for 64x64)
+    height      : u32, // 10 bits (0..1000 stored exactly)
+}
+
 
 struct CellData {
     height       : f32,       // 0..3
     heightNormal : vec3<f32>, // starts at 16, uses 16 bytes
     fAmount      : f32,       // at 28
     randDir      : f32,
+    spriteInfo   : u32,
     // _pad0        : vec3<f32>, // starts at 32, uses 16 bytes
 };
 // total size = 48 bytes, 12 floats

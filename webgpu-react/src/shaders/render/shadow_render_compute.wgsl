@@ -53,6 +53,12 @@ fn shadow_render(@builtin(global_invocation_id) gid : vec3<u32>) {
 
     finalColor = over_rgba(finalColor, castedShadowColor);
 
+    // let spriteInfo = unpackSpriteInfo(cell.spriteInfo);
+    // if(spriteInfo.height > 0)
+    // {
+    //     finalColor = vec4f(1.0, 0.0, 0.0, 1.0);
+    // }
+
 
     let idOffset = uView.size.x * uView.size.y;
     outputTex[idx(x,y) + idOffset] = pack4x8unorm(finalColor);

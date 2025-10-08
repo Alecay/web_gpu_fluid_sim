@@ -14,6 +14,7 @@ fn step(@builtin(global_invocation_id) gid : vec3<u32>) {
     // Mouse "paint" demo (writes to next)
     let mouse0Held = uInput.mouse0Held > 0.5;
     let mouse1Held = uInput.mouse1Held > 0.5;
+    let mouse2Held = uInput.mouse2Held > 0.5;
 
     let dSqrd = distanceSqrd(vec2<u32>(x,y), uInput.mousePos);
     let radiusSqrd = uInput.mouseRadius * uInput.mouseRadius;
@@ -33,28 +34,33 @@ fn step(@builtin(global_invocation_id) gid : vec3<u32>) {
 
 
     // height editing
-    // if(mouse0Held || mouse1Held)
+    // if(mouse0Held || mouse2Held)
     // {
     //     let inside = inside_circle(vec2<u32>(x,y), uInput.mousePos, uInput.mouseRadius);
     //     if (mouse0Held && inside) {
     //         out.height = out.height + 1.0;
     //     }
-    //     else if (mouse1Held && inside) {
+    //     else if (mouse2Held && inside) {
     //         out.height = out.height - 1.0;
     //     }
+
+    //     // if(inside)
+    //     // {
+    //     //   out.height = 47.0;
+    //     // }
     // }
     // Clamp
     out.height = clamp(out.height, 0.0, uTerrain.maxCellValue);
 
     // Fluid editing
     let fStrength = 3.0;
-    if(mouse0Held || mouse1Held)
+    if(mouse0Held || mouse2Held)
     {
         //let inside = inside_circle(vec2<u32>(x,y), uInput.mousePos, uInput.mouseRadius);
         if (mouse0Held && inside) {
             out.fAmount = out.fAmount + fStrength * radiusT;
         }
-        else if (mouse1Held && inside) {
+        else if (mouse2Held && inside) {
             out.fAmount = out.fAmount - fStrength * radiusT;
         }
     }

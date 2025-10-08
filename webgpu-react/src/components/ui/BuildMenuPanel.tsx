@@ -52,9 +52,9 @@ export default function BuildMenuPanel({
   const defaultTabs = useMemo<BuildMenuTab[]>(
     () => [
       {
-        key: "terrain",
+        key: "terraform",
         icon: <img src="./sprites/icon_paintbrush.png" style={imgStyle} />,
-        label: "Terrain",
+        label: "Terraform",
         hotkey: "1",
       },
       {

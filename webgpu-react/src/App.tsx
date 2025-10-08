@@ -426,8 +426,18 @@ export default function App() {
 
       setInput((prev) => {
         const next = { ...prev };
-        if (e.button === 0) next.mouse0Held = true;
-        if (e.button === 2) next.mouse1Held = true;
+        if (e.button === 0) {
+          next.mouse0Held = true;
+          next.mouse0Pressed = true;
+        }
+        if (e.button === 1) {
+          next.mouse1Held = true;
+          next.mouse1Pressed = true;
+        }
+        if (e.button === 2) {
+          next.mouse2Held = true;
+          next.mouse2Pressed = true;
+        }
         // webHandleRef.current?.updateInputBuffer?.(next);
         return next;
       });
@@ -436,8 +446,18 @@ export default function App() {
     const onMouseUp = (e: MouseEvent) => {
       setInput((prev) => {
         const next = { ...prev };
-        if (e.button === 0) next.mouse0Held = false;
-        if (e.button === 2) next.mouse1Held = false;
+        if (e.button === 0) {
+          next.mouse0Held = false;
+          next.mouse0Pressed = false;
+        }
+        if (e.button === 1) {
+          next.mouse1Held = false;
+          next.mouse1Pressed = false;
+        }
+        if (e.button === 2) {
+          next.mouse2Held = false;
+          next.mouse2Pressed = false;
+        }
         // webHandleRef.current?.updateInputBuffer?.(next);
         return next;
       });
@@ -454,6 +474,14 @@ export default function App() {
       moveCanvas(dt);
       updateVisibleRect();
       rafId = requestAnimationFrame(tick);
+
+      setInput((p) => ({
+        ...p,
+        mouse0Pressed: false,
+        mouse1Pressed: false,
+        mouse2Pressed: false,
+        mouseMoved: false,
+      }));
     };
 
     window.addEventListener("mousemove", onMouseMove);

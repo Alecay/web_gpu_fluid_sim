@@ -114,6 +114,16 @@ fn cellHeight(coord: vec2<u32>) -> f32 {
 }
 
 fn roundedCellHeight(coord: vec2<u32>) -> f32 {
+  let cCoord = clampCoord(coord);
+  let cell = currentCells[idx(cCoord.x, cCoord.y)];
+
+  let spriteInfo = unpackSpriteInfo(cell.spriteInfo);
+  if (spriteInfo.height > 0)
+  {
+    let spriteHeight = f32(spriteInfo.height) * f32(uTerrain.maxCellValue) / 5.0;
+    return roundToColorSteps(cell.height + spriteHeight);
+  }
+  
   return roundToColorSteps(cellHeight(coord));
 }
 
@@ -127,7 +137,7 @@ fn roundedCellFAmount(coord: vec2<u32>) -> f32 {
 }
 
 fn roundedCombinedCellHeight(coord: vec2<u32>) -> f32 {
-  return roundToColorSteps(cellHeight(coord)) + abs(cellFAmount(coord));
+  return roundedCellHeight(coord) + abs(cellFAmount(coord));
 }
 
 fn fHeight(coord: vec2<u32>) -> f32 {
