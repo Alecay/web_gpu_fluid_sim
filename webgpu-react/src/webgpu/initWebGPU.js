@@ -45,12 +45,12 @@ export async function initWebGPU(
 
   const device = await getDevice();
   // console.log("Using WebGPU device:", device.__id);
-  console.log(
-    "Max texture size: ",
-    device.limits.maxTextureDimension2D,
-    "current size: ",
-    noiseSettings.width * noiseSettings.pixelScale
-  );
+  // console.log(
+  //   "Max texture size: ",
+  //   device.limits.maxTextureDimension2D,
+  //   "current size: ",
+  //   noiseSettings.width * noiseSettings.pixelScale
+  // );
 
   const context = canvas.getContext("webgpu");
   const format = navigator.gpu.getPreferredCanvasFormat();
@@ -344,7 +344,7 @@ export async function initWebGPU(
 
   const resetMap = () => {
     initializeNoise(lastMapSeed);
-    console.log("reset");
+    // console.log("reset");
   };
 
   const randomizeMap = () => {
