@@ -265,11 +265,14 @@ fn terrainColorLerp(t: f32) -> vec4f {
 // ---------- Port of getTerrainColor ----------
 fn getTerrainColor(coord: vec2<u32>) -> vec4f {
   var color = vec4f(0.0, 0.0, 0.0, 0.0); // CLEAR
+  let cell = currentCells[idx(coord.x, coord.y)];
 
   let h = roundedCellHeight(coord);
   if (h >= 0.0) {
     let maxHeight = i32(round(uTerrain.maxCellValue * uTerrain.terrainHeightMultiplier));
     color = terrainColorLerp(h / f32(maxHeight));
+
+    color = lerp4(color, vec4(0.0, 0.0, 0.0, 1.0), cell.randDir / 8.0 * 0.1);
   }
 
   return color;

@@ -45,6 +45,23 @@ export function rgba8ToFloat32(src: Uint8Array): Float32Array {
   return out;
 }
 
+// Converts RGBA Uint8Array → packed Uint32Array (0xAARRGGBB format)
+export function rgba8ToUint32(src: Uint8Array): Uint32Array {
+  if (src.length % 4 !== 0)
+    throw new Error("RGBA length must be multiple of 4");
+  const N = src.length / 4;
+  const out = new Uint32Array(N);
+  for (let i = 0, j = 0; j < N; i += 4, j++) {
+    const r = src[i + 0];
+    const g = src[i + 1];
+    const b = src[i + 2];
+    const a = src[i + 3];
+    // Bytes [LSB..MSB] = [r, g, b, a]  -> 0xAABBGGRR
+    out[j] = (a << 24) | (b << 16) | (g << 8) | r;
+  }
+  return out;
+}
+
 export async function loadImagePixelsF32(url: string): Promise<{
   width: number;
   height: number;
@@ -53,4 +70,14 @@ export async function loadImagePixelsF32(url: string): Promise<{
   const { width, height, data } = await loadImagePixels(url);
 
   return { width, height, data: rgba8ToFloat32(data) };
+}
+
+export async function loadImagePixelsU32(url: string): Promise<{
+  width: number;
+  height: number;
+  data: Uint32Array; // RGBA, 8 bits per channel
+}> {
+  const { width, height, data } = await loadImagePixels(url);
+
+  return { width, height, data: rgba8ToUint32(data) };
 }

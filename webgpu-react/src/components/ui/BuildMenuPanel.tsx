@@ -45,10 +45,10 @@ export default function BuildMenuPanel({
 }: BuildMenuPanelProps) {
   const defaultTabs = useMemo<BuildMenuTab[]>(
     () => [
-      { key: "home", icon: <HouseFill />, label: "Home", hotkey: "h" },
-      { key: "grow", icon: <Flower1 />, label: "Grow", hotkey: "g" },
-      { key: "build", icon: <Hammer />, label: "Build", hotkey: "c" },
-      { key: "defend", icon: <ShieldFill />, label: "Defend", hotkey: "x" },
+      { key: "home", icon: <HouseFill />, label: "Home", hotkey: "1" },
+      { key: "grow", icon: <Flower1 />, label: "Grow", hotkey: "2" },
+      { key: "build", icon: <Hammer />, label: "Build", hotkey: "3" },
+      { key: "defend", icon: <ShieldFill />, label: "Defend", hotkey: "4" },
     ],
     []
   );
@@ -151,7 +151,7 @@ export default function BuildMenuPanel({
             transition: "transform 220ms ease",
             display: "flex",
             flexDirection: "column",
-            pointerEvents: "auto",
+            pointerEvents: "none",
           }}
         >
           {/* Tabs Row - always visible, attached to top of the dock */}
@@ -171,7 +171,11 @@ export default function BuildMenuPanel({
             }}
           >
             <ButtonGroup
-              style={{ display: "inline-flex", alignItems: "flex-end" }}
+              style={{
+                display: "inline-flex",
+                alignItems: "flex-end",
+                pointerEvents: "auto",
+              }}
               onMouseDown={(e) => e.preventDefault()}
             >
               {_tabs.map((t) => {

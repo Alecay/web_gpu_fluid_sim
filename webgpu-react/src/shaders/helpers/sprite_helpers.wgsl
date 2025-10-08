@@ -1,9 +1,12 @@
+const MAX_SPRITE_SIZE = 64 * 64;
+
 struct SpriteData
 {
     width       : u32,
     height      : u32,
     colorStart  : u32, // where the first pixel starts in sprite colors
-    colors      : array<u32, 256>
+    _pad        : u32,
+    colors      : array<u32, MAX_SPRITE_SIZE>
 }
 
 fn getSprite(index : u32) -> SpriteData
@@ -22,6 +25,9 @@ fn setSprite(index : u32, subPixelCoord : vec2<u32>)
 {
     let sprite = getSprite(index);
     let subPixelTexSize = vec2<u32>(uView.size.x * uView.pixelScale, uView.size.y * uView.pixelScale);
+    
+    let layer4Index = uView.size.x * uView.size.y * 4;
+
     for(var x = 0u; x < sprite.width; x++)
     {
         for(var y = 0u; y < sprite.height; y++)
@@ -33,7 +39,7 @@ fn setSprite(index : u32, subPixelCoord : vec2<u32>)
                 continue;
             }
 
-            subPixelTex[sCoord.x + subPixelTexSize.x * sCoord.y] = color;
+            outputTex[layer4Index + sCoord.x + subPixelTexSize.x * sCoord.y] = color;
         }
     }
 }

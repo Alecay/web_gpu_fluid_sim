@@ -24,8 +24,7 @@
 @group(0) @binding(6)  var<storage, read_write> outputTex                   : array<u32>;
 @group(0) @binding(7)  var<storage, read_write> cursorQuery                 : CursorQuery;
 @group(0) @binding(8)  var<storage, read_write> chunkData                   : array<ChunkData>;
-@group(0) @binding(9) var<storage, read>        sprites                     : array<SpriteData>;
-// @group(0) @binding(10) var<storage, read>       spriteColors                : array<vec4f>;
+@group(0) @binding(9)  var<storage, read>        sprites                     : array<SpriteData>;
 
 
 // =====================================================
@@ -50,7 +49,7 @@
 
 //{debug_render_compute}
 
-//sprite_render_compute
+//{sprite_render_compute}
 
 //{step_compute}
 

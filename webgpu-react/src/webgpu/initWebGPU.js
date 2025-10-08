@@ -11,7 +11,7 @@ import { createOrUpdateInputBuffer } from "./buffers/inputBuffer";
 import { getBindings } from "./bindingGroups";
 import { inputsEqual } from "../interfaces/Input";
 import { fps } from "../interfaces/FPSMeter";
-import { loadImagePixelsF32 } from "../helpers/imageHelpers";
+import { loadImagePixelsU32 } from "../helpers/imageHelpers";
 
 /**
  * @param {HTMLCanvasElement | null} canvas
@@ -225,12 +225,12 @@ export async function initWebGPU(
 
   const spritePaths = [
     "./sprites/Tower.png",
-    "./sprites/tree001.png",
-    "./sprites/tree002.png",
+    "./sprites/16bit_tree.png",
+    "./sprites/top_down_tree.png",
   ];
   const spriteData = await Promise.all(
     spritePaths.map(async (path, index) => {
-      const { width, height, data } = await loadImagePixelsF32(path);
+      const { width, height, data } = await loadImagePixelsU32(path);
       return {
         path,
         width,
@@ -247,36 +247,45 @@ export async function initWebGPU(
     spritePixelCount += spriteData[i].width * spriteData[i].height;
   }
 
+  const maxSpriteWidth = 64;
+  const MAX_SPRITE_SIZE = maxSpriteWidth * maxSpriteWidth;
+
+  const HEADER_U32 = 4; // width,height,colorStart,_pad
+  const STRIDE_U32 = HEADER_U32 + MAX_SPRITE_SIZE; // total u32s per SpriteData
+  const STRIDE_BYTES = STRIDE_U32 * 4; // bytes per SpriteData
+
+  // Create the GPU buffer
+  const spriteCount = spriteData.length;
   const spriteDataBuffer = device.createBuffer({
     label: "Sprite Data",
-    size: spriteData.length * 4 * 4, // 4 floats per sprite
+    size: spriteCount * STRIDE_BYTES,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
 
-  const spriteDataF32 = new Float32Array(spriteData.length * 4);
-  for (let i = 0; i < spriteData.length; i++) {
-    spriteDataF32[i * 4 + 0] = spriteData[i].width;
-    spriteDataF32[i * 4 + 1] = spriteData[i].height;
-    spriteDataF32[i * 4 + 2] = spriteData[i].colorStart;
-    //spriteDataF32[i * 4 + 0] = spriteData[i].width;
-  }
+  // Build a Uint32Array matching the WGSL layout exactly
+  const spritesU32 = new Uint32Array(spriteCount * STRIDE_U32);
 
-  device.queue.writeBuffer(spriteDataBuffer, 0, spriteDataF32);
+  for (let i = 0; i < spriteCount; i++) {
+    const s = spriteData[i]; // { width, height, colorStart, data: Uint32Array | number[] }
+    const base = i * STRIDE_U32;
 
-  const spriteColorsBuffer = device.createBuffer({
-    label: "Sprite Colors",
-    size: spritePixelCount * 4 * 4, // 4 floats per sprite
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-  });
+    // Header (4 u32s)
+    spritesU32[base + 0] = s.width >>> 0;
+    spritesU32[base + 1] = s.height >>> 0;
+    spritesU32[base + 2] = (s.colorStart ?? 0) >>> 0;
+    spritesU32[base + 3] = 0; // _pad
 
-  const spriteColorsF32 = new Float32Array(spritePixelCount * 4);
-  for (let i = 0; i < spriteData.length; i++) {
-    for (let j = 0; j < spriteData[i].data.length; j++) {
-      spriteColorsF32[spriteData[i].colorStart + j] = spriteData[i].data[j];
+    // Colors (packed 0xAARRGGBB u32s). Clamp to MAX_SPRITE_SIZE.
+    const src = s.data; // assume length <= MAX_SPRITE_SIZE
+    const count = Math.min(MAX_SPRITE_SIZE, src.length);
+    for (let j = 0; j < count; j++) {
+      spritesU32[base + HEADER_U32 + j] = src[j] >>> 0;
     }
+    // The remainder is already zero-initialized.
   }
 
-  device.queue.writeBuffer(spriteColorsBuffer, 0, spriteColorsF32);
+  // Upload
+  device.queue.writeBuffer(spriteDataBuffer, 0, spritesU32);
 
   // ----- Storage buffers (vec4f per cell => 16 bytes) -----
   const FLOATS_PER_CELL = 12;
@@ -316,11 +325,12 @@ export async function initWebGPU(
     for (let index = 0; index < noiseData.length; index++) {
       const cellIndex = index * FLOATS_PER_CELL;
       init[cellIndex] = noiseData[index] * 100.0;
-      init[cellIndex + 3] = Math.floor(Math.random() * (7 - 0 + 1)) + 0; // set random dir
+      init[cellIndex + 8] = Math.floor(Math.random() * (7 - 0 + 1)) + 0; // set random dir
     }
 
     device.queue.writeBuffer(prevCellsBuffer, 0, init);
     device.queue.writeBuffer(nextCellsBuffer, 0, init);
+    // device.queue.submit([]);
 
     // reset some values
     frameIdx = 0;
@@ -334,6 +344,7 @@ export async function initWebGPU(
 
   const resetMap = () => {
     initializeNoise(lastMapSeed);
+    console.log("reset");
   };
 
   const randomizeMap = () => {
@@ -367,7 +378,6 @@ export async function initWebGPU(
     cursorQueryBuffer,
     chunkDataBuffer,
     spriteDataBuffer,
-    spriteColorsBuffer,
   });
 
   // ----- Render pass descriptor (no explicit typing) -----
@@ -549,17 +559,22 @@ export async function initWebGPU(
       debugRenderPass.end();
     }
 
-    // if (frameIdx % 10 == 0) {
-    //   const spriteRenderPass = encoder.beginComputePass({
-    //     label: "Sprite Render Compute Pass",
-    //   });
-    //   spriteRenderPass.setPipeline(
-    //     bindings.piplines.spriteRenderComputePipeline
-    //   );
-    //   spriteRenderPass.setBindGroup(0, bindings.bindGroups.spriteComputeBG);
-    //   spriteRenderPass.dispatchWorkgroups(1, 1, 1);
-    //   spriteRenderPass.end();
-    // }
+    if (frameIdx % 10 == 0) {
+      const spriteRenderPass = encoder.beginComputePass({
+        label: "Sprite Render Compute Pass",
+      });
+      spriteRenderPass.setPipeline(
+        bindings.piplines.spriteRenderComputePipeline
+      );
+      spriteRenderPass.setBindGroup(
+        0,
+        aToB
+          ? bindings.bindGroups.unifiedComputeBG_A
+          : bindings.bindGroups.unifiedComputeBG_B
+      );
+      spriteRenderPass.dispatchWorkgroups(1, 1, 1);
+      spriteRenderPass.end();
+    }
 
     // query
     if (preformQuery) {

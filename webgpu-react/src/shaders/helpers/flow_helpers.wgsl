@@ -52,7 +52,7 @@ fn highestNeighborIndex(coord: vec2<i32>) -> u32
 	let cycleIndex : u32 = (uView.simIndex * 3u) % 8u;
 
 	// keep your existing per-cell offset
-	let baseOffset : u32 = cell.randDir % 8;
+	let baseOffset : u32 = u32(cell.randDir) % 8u;
 
 	// final start index
 	let cIndex     : u32 = (cycleIndex + baseOffset) % 8u;
@@ -90,7 +90,7 @@ fn lowestNeighborIndex(coord: vec2<i32>) -> u32
 	let cycleIndex : u32 = (uView.simIndex * 3u) % 8u;
 
 	// keep your existing per-cell offset
-	let baseOffset : u32 = cell.randDir % 8;
+	let baseOffset : u32 = u32(cell.randDir) % 8u;
 
 	// final start index
 	let cIndex     : u32 = (cycleIndex + baseOffset) % 8u;

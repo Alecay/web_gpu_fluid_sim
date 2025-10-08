@@ -70,7 +70,7 @@ fn step(@builtin(global_invocation_id) gid : vec3<u32>) {
 
     eD = distanceSqrd(vec2<u32>(x, y), vec2<u32>(720, 120));
     if(eD < 5)
-    {
+    {  
       out.fAmount -= ePerSec;
     }
 

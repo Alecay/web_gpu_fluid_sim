@@ -13,6 +13,8 @@ fn fluid_render(@builtin(global_invocation_id) gid : vec3<u32>) {
         return; 
     }
 
+    let cell = currentCells[idx(x, y)];
+
     let clear = vec4f(0.0, 0.0, 0.0, 0.0);
     let black = vec4f(0.0, 0.0, 0.0, 1.0);
     let white = vec4f(1.0, 1.0, 1.0, 1.0);

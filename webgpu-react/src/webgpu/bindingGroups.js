@@ -45,11 +45,11 @@ export function getBindings(device, module, format, buffers) {
       type: "storage",
       buffer: buffers.chunkDataBuffer,
     },
-    // sprites: {
-    //   binding: 11,
-    //   type: "read-only-storage",
-    //   buffer: buffers.spriteDataBuffer,
-    // },
+    sprites: {
+      binding: 9,
+      type: "read-only-storage",
+      buffer: buffers.spriteDataBuffer,
+    },
     // spriteColors: {
     //   binding: 12,
     //   type: "read-only-storage",
@@ -71,55 +71,51 @@ export function getBindings(device, module, format, buffers) {
   const unifiedComputeBG_A = device.createBindGroup({
     label: "Unified Compute BG A",
     layout: unifiedComputeBGL,
-    entries: Object.keys(bufferSettings)
-      .filter((k) => !["sprites", "spriteColors"].includes(k))
-      .map((key) => {
-        if (key === "currentCells") {
-          return {
-            binding: bufferSettings.currentCells.binding,
-            resource: { buffer: buffers.prevCellsBuffer },
-          };
-        }
-
-        if (key === "nextCells") {
-          return {
-            binding: bufferSettings.nextCells.binding,
-            resource: { buffer: buffers.nextCellsBuffer },
-          };
-        }
-
+    entries: Object.keys(bufferSettings).map((key) => {
+      if (key === "currentCells") {
         return {
-          binding: bufferSettings[key].binding,
-          resource: { buffer: bufferSettings[key].buffer },
+          binding: bufferSettings.currentCells.binding,
+          resource: { buffer: buffers.prevCellsBuffer },
         };
-      }),
+      }
+
+      if (key === "nextCells") {
+        return {
+          binding: bufferSettings.nextCells.binding,
+          resource: { buffer: buffers.nextCellsBuffer },
+        };
+      }
+
+      return {
+        binding: bufferSettings[key].binding,
+        resource: { buffer: bufferSettings[key].buffer },
+      };
+    }),
   });
 
   const unifiedComputeBG_B = device.createBindGroup({
     label: "Unified Compute BG show B",
     layout: unifiedComputeBGL,
-    entries: Object.keys(bufferSettings)
-      .filter((k) => !["sprites", "spriteColors"].includes(k))
-      .map((key) => {
-        if (key === "currentCells") {
-          return {
-            binding: bufferSettings.currentCells.binding,
-            resource: { buffer: buffers.nextCellsBuffer },
-          };
-        }
-
-        if (key === "nextCells") {
-          return {
-            binding: bufferSettings.nextCells.binding,
-            resource: { buffer: buffers.prevCellsBuffer },
-          };
-        }
-
+    entries: Object.keys(bufferSettings).map((key) => {
+      if (key === "currentCells") {
         return {
-          binding: bufferSettings[key].binding,
-          resource: { buffer: bufferSettings[key].buffer },
+          binding: bufferSettings.currentCells.binding,
+          resource: { buffer: buffers.nextCellsBuffer },
         };
-      }),
+      }
+
+      if (key === "nextCells") {
+        return {
+          binding: bufferSettings.nextCells.binding,
+          resource: { buffer: buffers.prevCellsBuffer },
+        };
+      }
+
+      return {
+        binding: bufferSettings[key].binding,
+        resource: { buffer: bufferSettings[key].buffer },
+      };
+    }),
   });
 
   // Render: 0=uniform, 1=current(read) for fragment
