@@ -43,12 +43,38 @@ export default function BuildMenuPanel({
   closeOnOutsideClick = true,
   hotkey = "b",
 }: BuildMenuPanelProps) {
+  const imgStyle: React.CSSProperties = {
+    imageRendering: "pixelated",
+    pointerEvents: "none",
+    aspectRatio: "initial",
+    width: "100%",
+  };
   const defaultTabs = useMemo<BuildMenuTab[]>(
     () => [
-      { key: "home", icon: <HouseFill />, label: "Home", hotkey: "1" },
-      { key: "grow", icon: <Flower1 />, label: "Grow", hotkey: "2" },
-      { key: "build", icon: <Hammer />, label: "Build", hotkey: "3" },
-      { key: "defend", icon: <ShieldFill />, label: "Defend", hotkey: "4" },
+      {
+        key: "terrain",
+        icon: <img src="./sprites/icon_paintbrush.png" style={imgStyle} />,
+        label: "Terrain",
+        hotkey: "1",
+      },
+      {
+        key: "econ",
+        icon: <img src="./sprites/icon_coin.png" style={imgStyle} />,
+        label: "Economy",
+        hotkey: "2",
+      },
+      {
+        key: "power",
+        icon: <img src="./sprites/icon_power.png" style={imgStyle} />,
+        label: "Power",
+        hotkey: "3",
+      },
+      {
+        key: "defend",
+        icon: <img src="./sprites/icon_shield.png" style={imgStyle} />,
+        label: "Defend",
+        hotkey: "4",
+      },
     ],
     []
   );
@@ -206,13 +232,15 @@ export default function BuildMenuPanel({
                       display: "inline-flex",
                       alignItems: "flex-start",
                       outline: "none !important",
+                      padding: "4px",
                     }}
                     aria-label={t.label}
                     title={t.label}
                   >
-                    <span style={{ fontSize: 15, lineHeight: 0 }}>
+                    {t.icon}
+                    {/* <span style={{ fontSize: 20, lineHeight: 0 }}>
                       {t.icon}
-                    </span>
+                    </span> */}
                   </Button>
                 );
               })}
