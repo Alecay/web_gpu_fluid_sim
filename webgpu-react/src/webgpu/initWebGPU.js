@@ -495,7 +495,7 @@ export async function initWebGPU(
     {
       const stepPass = encoder.beginComputePass({ label: "Step Compute Pass" });
       stepPass.setPipeline(bindings.piplines.stepComputePipeline);
-      for (let i = 0; i < input.simulationSubSteps; i++) {
+      for (let i = 0; i < input.simulationSubSteps * 2; i++) {
         stepPass.setBindGroup(
           0,
           aToB
@@ -523,6 +523,7 @@ export async function initWebGPU(
     if (frameIdx < 60) {
       updateTerrainTexture = true;
       updateNormals = true;
+      updateShadowTexture = true;
     }
 
     if (input.visibleRectChanged) {
@@ -530,7 +531,7 @@ export async function initWebGPU(
       // console.log("Visible rect changed");
     }
 
-    updateShadowTexture = true;
+    // updateShadowTexture = true;
 
     // Normal Compute: prev -> next in chosen direction
     if (updateNormals || updateTerrainTexture) {
@@ -626,26 +627,26 @@ export async function initWebGPU(
       debugRenderPass.end();
     }
 
-    if (false && input.mouse0Pressed) {
-      const spriteRenderPass = encoder.beginComputePass({
-        label: "Sprite Render Compute Pass",
-      });
-      spriteRenderPass.setPipeline(
-        bindings.piplines.spriteRenderComputePipeline
-      );
-      spriteRenderPass.setBindGroup(
-        0,
-        aToB
-          ? bindings.bindGroups.unifiedComputeBG_A
-          : bindings.bindGroups.unifiedComputeBG_B
-      );
-      spriteRenderPass.dispatchWorkgroups(
-        Math.ceil(maxSpriteWidth / WG_X),
-        Math.ceil(maxSpriteWidth / WG_Y),
-        1
-      );
-      spriteRenderPass.end();
-    }
+    // if (input.mouse0Pressed) {
+    //   const spriteRenderPass = encoder.beginComputePass({
+    //     label: "Sprite Render Compute Pass",
+    //   });
+    //   spriteRenderPass.setPipeline(
+    //     bindings.piplines.spriteRenderComputePipeline
+    //   );
+    //   spriteRenderPass.setBindGroup(
+    //     0,
+    //     aToB
+    //       ? bindings.bindGroups.unifiedComputeBG_A
+    //       : bindings.bindGroups.unifiedComputeBG_B
+    //   );
+    //   spriteRenderPass.dispatchWorkgroups(
+    //     Math.ceil(maxSpriteWidth / WG_X),
+    //     Math.ceil(maxSpriteWidth / WG_Y),
+    //     1
+    //   );
+    //   spriteRenderPass.end();
+    // }
 
     // query
     if (preformQuery) {

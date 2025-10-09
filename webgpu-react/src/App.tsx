@@ -219,7 +219,7 @@ export default function App() {
           let np = !p;
           setInput((i) => ({
             ...i,
-            simulationSubSteps: np ? 0 : Math.ceil(4 * gameSpeed),
+            simulationSubSteps: np ? 0 : Math.ceil(gameSpeed),
           }));
           return np;
         });
@@ -231,7 +231,7 @@ export default function App() {
           let ns = nextGameSpeed(s, false);
           setInput((i) => ({
             ...i,
-            simulationSubSteps: paused ? 0 : Math.ceil(4 * ns),
+            simulationSubSteps: paused ? 0 : Math.ceil(ns),
           }));
           return ns;
         });
@@ -243,7 +243,7 @@ export default function App() {
           let ns = previousGameSpeed(s, false);
           setInput((i) => ({
             ...i,
-            simulationSubSteps: paused ? 0 : Math.ceil(4 * ns),
+            simulationSubSteps: paused ? 0 : Math.ceil(ns),
           }));
           return ns;
         });
@@ -475,13 +475,19 @@ export default function App() {
       updateVisibleRect();
       rafId = requestAnimationFrame(tick);
 
-      setInput((p) => ({
-        ...p,
-        mouse0Pressed: false,
-        mouse1Pressed: false,
-        mouse2Pressed: false,
-        mouseMoved: false,
-      }));
+      if (
+        inputRef.current.mouse0Pressed ||
+        inputRef.current.mouse1Pressed ||
+        inputRef.current.mouse2Pressed ||
+        inputRef.current.mouseMoved
+      )
+        setInput((p) => ({
+          ...p,
+          mouse0Pressed: false,
+          mouse1Pressed: false,
+          mouse2Pressed: false,
+          mouseMoved: false,
+        }));
     };
 
     window.addEventListener("mousemove", onMouseMove);

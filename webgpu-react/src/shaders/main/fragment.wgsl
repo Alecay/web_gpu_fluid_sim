@@ -33,17 +33,14 @@ fn fs(@builtin(position) frag_pos: vec4f) -> @location(0) vec4f {
     let inInner = inside_circle(coord, uInput.mousePos, uInput.mouseRadius - mouseWidth);
     
     let isCursorSpot = 
-        (x == uInput.mousePos.x && y == uInput.mousePos.y)     ||   // center
-        (x == uInput.mousePos.x - 1 && y == uInput.mousePos.y) ||   // left
-        (x == uInput.mousePos.x  + 1&& y == uInput.mousePos.y) ||   // right
-        (x == uInput.mousePos.x && y == uInput.mousePos.y + 1) ||   // up
-        (x == uInput.mousePos.x && y == uInput.mousePos.y - 1);     // down
+        (x == uInput.mousePos.x && y == uInput.mousePos.y) || 
+        isDirectNeighbor(coord, uInput.mousePos);
     
-    var cursorOutline = vec4f(0.0, 0.0, 0.0, 0.0);
-    if ((inOuter && !inInner) || isCursorSpot) 
-    {
-        cursorOutline = vec4f(0.0, 0.0, 0.0, 0.5);
-    }
+    var cursorOutline = select(
+            vec4f(0.0, 0.0, 0.0, 0.0), 
+            vec4f(0.0, 0.0, 0.0, 0.5), 
+            (inOuter && !inInner) || isCursorSpot
+        );
 
     var combinedColor = vec4f(0.0, 0.0, 0.0, 0.0);
     combinedColor = over_rgba(combinedColor, terrainColor);
@@ -51,7 +48,8 @@ fn fs(@builtin(position) frag_pos: vec4f) -> @location(0) vec4f {
     combinedColor = over_rgba(combinedColor, shadowColor);
     combinedColor = over_rgba(combinedColor, fluidColor);
     combinedColor = over_rgba(combinedColor, cursorOutline);
-    if(uView.showDebug > 0u) { combinedColor = over_rgba(combinedColor, debugColor); }
+    //combinedColor = select(combinedColor, over_rgba(combinedColor, debugColor), uView.showDebug > 0u);
+    if (uView.showDebug > 0u) { combinedColor = over_rgba(combinedColor, debugColor); }
 
 
     // if(inInner && (canvasX % pixelScale == 0 || canvasY % pixelScale == 0))
