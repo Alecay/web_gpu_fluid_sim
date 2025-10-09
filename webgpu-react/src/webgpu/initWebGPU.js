@@ -11,7 +11,8 @@ import { createOrUpdateInputBuffer } from "./buffers/inputBuffer";
 import { getBindings } from "./bindingGroups";
 import { inputsEqual } from "../interfaces/Input";
 import { fps } from "../interfaces/FPSMeter";
-import { loadImagePixelsU32 } from "../helpers/imageHelpers";
+
+const MAX_SPRITE_WIDTH = 64;
 
 /**
  * @param {HTMLCanvasElement | null} canvas
@@ -224,134 +225,17 @@ export async function initWebGPU(
     new Float32Array((outputTexSize + subPixelTexSize) / 4)
   );
 
-  console.log("Started building sprite data");
+  console.time("loadPackedSprites");
+  const res = await fetch("./sprites_built/sprites_u32.bin");
+  const buf = await res.arrayBuffer();
+  const spritesU32 = new Uint32Array(buf);
+  console.timeEnd("loadPackedSprites");
 
-  const spritePaths = [
-    "./sprites/Tower.png",
-    // "./sprites/16bit_tree.png",
-    "./sprites/top_down_tree.png",
-  ];
-  const spriteData = await Promise.all(
-    spritePaths.map(async (path, index) => {
-      const { width, height, data } = await loadImagePixelsU32(path);
-      return {
-        path,
-        width,
-        height,
-        data,
-        index,
-      };
-    })
-  );
-
-  /**
-   * Build per-subpixel heightData for each sprite.
-   * mode = "any" → cell is 1 if any subpixel alpha>0
-   * mode = "all" → cell is 1 only if every subpixel alpha>0
-   */
-  function buildHeightDataForSprites(
-    spriteData,
-    pixelScale,
-    mode = "any" // : "any" | "all"
-  ) {
-    const requireAll = mode === "all";
-
-    for (let i = 0; i < spriteData.length; i++) {
-      const { width, height, data: colors } = spriteData[i];
-
-      const cellW = Math.ceil(width / pixelScale);
-      const cellH = Math.ceil(height / pixelScale);
-
-      // Per-cell mask
-      const cellMask = new Uint8Array(cellW * cellH);
-      if (requireAll) {
-        // Start optimistic (all 1s) and clear to 0 when any alpha==0 is seen.
-        cellMask.fill(1);
-      } // else default 0s; flip to 1 on first alpha>0.
-
-      // Pass A: accumulate per-cell using chosen rule
-      for (let y = 0; y < height; y++) {
-        const rowBase = y * width;
-        const cy = Math.floor(y / pixelScale);
-        const cyBase = cy * cellW;
-
-        for (let x = 0; x < width; x++) {
-          const pixel = colors[rowBase + x] >>> 0; // ensure uint
-          const alpha = (pixel >>> 24) & 0xff;
-          const cx = Math.floor(x / pixelScale);
-          const idx = cyBase + cx;
-
-          if (requireAll) {
-            // "all" → if we find any alpha==0, the cell becomes 0
-            if (alpha === 0) cellMask[idx] = 0;
-          } else {
-            // "any" → if we find any alpha>0, the cell becomes 1
-            if (alpha > 0) cellMask[idx] = 1;
-          }
-        }
-      }
-
-      // Pass B: expand per-cell mask back to subpixels
-      const heightData = new Uint32Array(width * height);
-      for (let y = 0; y < height; y++) {
-        const rowBase = y * width;
-        const cy = Math.floor(y / pixelScale);
-        const cyBase = cy * cellW;
-
-        for (let x = 0; x < width; x++) {
-          const cx = Math.floor(x / pixelScale);
-          heightData[rowBase + x] = cellMask[cyBase + cx];
-        }
-      }
-
-      spriteData[i] = { ...spriteData[i], heightData };
-    }
-  }
-
-  buildHeightDataForSprites(spriteData, noiseSettings.pixelScale, "all");
-
-  console.log("Ended building sprite data");
-
-  const maxSpriteWidth = 64;
-  const MAX_SPRITE_SIZE = maxSpriteWidth * maxSpriteWidth;
-
-  const HEADER_U32 = 4; // width,height,colorStart,_pad
-  const STRIDE_U32 = HEADER_U32 + MAX_SPRITE_SIZE * 2; // total u32s per SpriteData
-  const STRIDE_BYTES = STRIDE_U32 * 4; // bytes per SpriteData
-
-  // Create the GPU buffer
-  const spriteCount = spriteData.length;
   const spriteDataBuffer = device.createBuffer({
     label: "Sprite Data",
-    size: spriteCount * STRIDE_BYTES,
+    size: spritesU32.byteLength,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
-
-  // Build a Uint32Array matching the WGSL layout exactly
-  const spritesU32 = new Uint32Array(spriteCount * STRIDE_U32);
-
-  for (let i = 0; i < spriteCount; i++) {
-    const s = spriteData[i];
-    const base = i * STRIDE_U32;
-
-    // Header (4 u32s)
-    spritesU32[base + 0] = s.width >>> 0;
-    spritesU32[base + 1] = s.height >>> 0;
-    spritesU32[base + 2] = 0; // pad
-    spritesU32[base + 3] = 0; // _pad
-
-    // Colors (packed 0xAARRGGBB u32s). Clamp to MAX_SPRITE_SIZE.
-    const src = s.data; // assume length <= MAX_SPRITE_SIZE
-    const heights = s.heightData;
-    const count = Math.min(MAX_SPRITE_SIZE, src.length);
-    for (let j = 0; j < count; j++) {
-      spritesU32[base + HEADER_U32 + j] = src[j] >>> 0;
-      spritesU32[base + HEADER_U32 + MAX_SPRITE_SIZE + j] = heights[j] >>> 0;
-    }
-    // The remainder is already zero-initialized.
-  }
-
-  // Upload
   device.queue.writeBuffer(spriteDataBuffer, 0, spritesU32);
 
   // ----- Storage buffers (vec4f per cell => 16 bytes) -----
@@ -627,26 +511,26 @@ export async function initWebGPU(
       debugRenderPass.end();
     }
 
-    // if (input.mouse0Pressed) {
-    //   const spriteRenderPass = encoder.beginComputePass({
-    //     label: "Sprite Render Compute Pass",
-    //   });
-    //   spriteRenderPass.setPipeline(
-    //     bindings.piplines.spriteRenderComputePipeline
-    //   );
-    //   spriteRenderPass.setBindGroup(
-    //     0,
-    //     aToB
-    //       ? bindings.bindGroups.unifiedComputeBG_A
-    //       : bindings.bindGroups.unifiedComputeBG_B
-    //   );
-    //   spriteRenderPass.dispatchWorkgroups(
-    //     Math.ceil(maxSpriteWidth / WG_X),
-    //     Math.ceil(maxSpriteWidth / WG_Y),
-    //     1
-    //   );
-    //   spriteRenderPass.end();
-    // }
+    if (input.mouse0Pressed) {
+      const spriteRenderPass = encoder.beginComputePass({
+        label: "Sprite Render Compute Pass",
+      });
+      spriteRenderPass.setPipeline(
+        bindings.piplines.spriteRenderComputePipeline
+      );
+      spriteRenderPass.setBindGroup(
+        0,
+        aToB
+          ? bindings.bindGroups.unifiedComputeBG_A
+          : bindings.bindGroups.unifiedComputeBG_B
+      );
+      spriteRenderPass.dispatchWorkgroups(
+        Math.ceil(MAX_SPRITE_WIDTH / WG_X),
+        Math.ceil(MAX_SPRITE_WIDTH / WG_Y),
+        1
+      );
+      spriteRenderPass.end();
+    }
 
     // query
     if (preformQuery) {

@@ -53,25 +53,25 @@ export default function BuildMenuPanel({
     () => [
       {
         key: "terraform",
-        icon: <img src="./sprites/icon_paintbrush.png" style={imgStyle} />,
+        icon: <img src="./icons/icon_paintbrush.png" style={imgStyle} />,
         label: "Terraform",
         hotkey: "1",
       },
       {
         key: "econ",
-        icon: <img src="./sprites/icon_coin.png" style={imgStyle} />,
+        icon: <img src="./icons/icon_coin.png" style={imgStyle} />,
         label: "Economy",
         hotkey: "2",
       },
       {
         key: "power",
-        icon: <img src="./sprites/icon_power.png" style={imgStyle} />,
+        icon: <img src="./icons/icon_power.png" style={imgStyle} />,
         label: "Power",
         hotkey: "3",
       },
       {
         key: "defend",
-        icon: <img src="./sprites/icon_shield.png" style={imgStyle} />,
+        icon: <img src="./icons/icon_shield.png" style={imgStyle} />,
         label: "Defend",
         hotkey: "4",
       },

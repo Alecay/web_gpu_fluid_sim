@@ -50,19 +50,49 @@ const WebGPUCanvas = forwardRef<HTMLCanvasElement, WebGPUCanvasProps>(
       if (!localRef.current) return;
 
       let cleanup = () => {};
+      let abort = false;
+
+      const nextFrame = () =>
+        new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      const idle = () =>
+        new Promise<void>((resolve) =>
+          // fall back to rAF if requestIdleCallback is unavailable
+          (window as any).requestIdleCallback
+            ? (window as any).requestIdleCallback(() => resolve())
+            : requestAnimationFrame(() => resolve())
+        );
+
       (async () => {
+        // 1) Let the canvas render before heavy work
+        await nextFrame();
+        if (abort) return;
+
+        // 2) Give the main thread a breather (network, styles, etc.)
+        await idle();
+        if (abort) return;
+
+        // 3) Now do your existing initialization
         const handle = await initWebGPU(
-          localRef.current,
+          localRef.current!,
           noiseSettings,
           () => inputRef.current,
           setInput,
           setCursorQuery,
           setSimIndex
         );
+        if (abort) {
+          handle.cleanup?.();
+          return;
+        }
         cleanup = handle.cleanup;
         setWebGPUHandle(handle);
       })();
-      return () => cleanup?.();
+
+      return () => {
+        abort = true;
+        cleanup?.();
+      };
+      // keep deps minimal to avoid repeated inits
     }, [noiseSettings, setInput, setWebGPUHandle, setCursorQuery]);
 
     // If you want click-through overlay, add pointerEvents: 'none' on the overlay.

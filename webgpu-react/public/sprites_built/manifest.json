@@ -1,0 +1,35 @@
+{
+  "formatVersion": 1,
+  "endian": "LE",
+  "mode": "all",
+  "pixelScale": 2,
+  "count": 2,
+  "maxSpriteWidth": 64,
+  "maxSpriteSize": 4096,
+  "layout": {
+    "headerU32": 4,
+    "strideU32": 8196
+  },
+  "entries": [
+    {
+      "name": "Tower.png",
+      "path": "public/sprites/Tower.png",
+      "width": 16,
+      "height": 16,
+      "colorStart": 0,
+      "colorBytes": 1024,
+      "heightStart": 1024,
+      "heightBytes": 1024
+    },
+    {
+      "name": "top_down_tree.png",
+      "path": "public/sprites/top_down_tree.png",
+      "width": 64,
+      "height": 64,
+      "colorStart": 2048,
+      "colorBytes": 16384,
+      "heightStart": 18432,
+      "heightBytes": 16384
+    }
+  ]
+}
