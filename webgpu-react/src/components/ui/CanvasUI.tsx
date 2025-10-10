@@ -133,7 +133,7 @@ export default function CanvasUI({
             setGameSpeed(gameSpeed);
             setInput({
               ...input,
-              simulationSubSteps: paused ? 0 : Math.ceil(4 * gameSpeed),
+              simulationSubSteps: paused ? 0 : gameSpeed,
             });
           }}
           setCursorOverUI={setCursorOverUI}
