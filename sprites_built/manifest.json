@@ -3,7 +3,7 @@
   "endian": "LE",
   "mode": "all",
   "pixelScale": 2,
-  "count": 2,
+  "count": 12,
   "maxSpriteWidth": 64,
   "maxSpriteSize": 4096,
   "layout": {
@@ -12,8 +12,9 @@
   },
   "entries": [
     {
-      "name": "Tower.png",
-      "path": "public/sprites/Tower.png",
+      "index": 0,
+      "name": "shooter.png",
+      "path": "public/sprites/shooter.png",
       "width": 16,
       "height": 16,
       "colorStart": 0,
@@ -22,13 +23,124 @@
       "heightBytes": 1024
     },
     {
+      "index": 1,
+      "name": "solar_panel.png",
+      "path": "public/sprites/solar_panel.png",
+      "width": 48,
+      "height": 48,
+      "colorStart": 2048,
+      "colorBytes": 9216,
+      "heightStart": 11264,
+      "heightBytes": 9216
+    },
+    {
+      "index": 2,
+      "name": "sprayer.png",
+      "path": "public/sprites/sprayer.png",
+      "width": 64,
+      "height": 64,
+      "colorStart": 20480,
+      "colorBytes": 16384,
+      "heightStart": 36864,
+      "heightBytes": 16384
+    },
+    {
+      "index": 3,
+      "name": "tiny_straight_conveyor_indv1.png",
+      "path": "public/sprites/tiny_straight_conveyor_indv/tiny_straight_conveyor_indv1.png",
+      "width": 16,
+      "height": 16,
+      "colorStart": 53248,
+      "colorBytes": 1024,
+      "heightStart": 54272,
+      "heightBytes": 1024
+    },
+    {
+      "index": 4,
+      "name": "tiny_straight_conveyor_indv2.png",
+      "path": "public/sprites/tiny_straight_conveyor_indv/tiny_straight_conveyor_indv2.png",
+      "width": 16,
+      "height": 16,
+      "colorStart": 55296,
+      "colorBytes": 1024,
+      "heightStart": 56320,
+      "heightBytes": 1024
+    },
+    {
+      "index": 5,
+      "name": "tiny_straight_conveyor_indv3.png",
+      "path": "public/sprites/tiny_straight_conveyor_indv/tiny_straight_conveyor_indv3.png",
+      "width": 16,
+      "height": 16,
+      "colorStart": 57344,
+      "colorBytes": 1024,
+      "heightStart": 58368,
+      "heightBytes": 1024
+    },
+    {
+      "index": 6,
+      "name": "tiny_straight_conveyor_indv4.png",
+      "path": "public/sprites/tiny_straight_conveyor_indv/tiny_straight_conveyor_indv4.png",
+      "width": 16,
+      "height": 16,
+      "colorStart": 59392,
+      "colorBytes": 1024,
+      "heightStart": 60416,
+      "heightBytes": 1024
+    },
+    {
+      "index": 7,
+      "name": "tiny_straight_conveyor_indv5.png",
+      "path": "public/sprites/tiny_straight_conveyor_indv/tiny_straight_conveyor_indv5.png",
+      "width": 16,
+      "height": 16,
+      "colorStart": 61440,
+      "colorBytes": 1024,
+      "heightStart": 62464,
+      "heightBytes": 1024
+    },
+    {
+      "index": 8,
+      "name": "tiny_straight_conveyor_indv6.png",
+      "path": "public/sprites/tiny_straight_conveyor_indv/tiny_straight_conveyor_indv6.png",
+      "width": 16,
+      "height": 16,
+      "colorStart": 63488,
+      "colorBytes": 1024,
+      "heightStart": 64512,
+      "heightBytes": 1024
+    },
+    {
+      "index": 9,
+      "name": "tiny_straight_conveyor_indv7.png",
+      "path": "public/sprites/tiny_straight_conveyor_indv/tiny_straight_conveyor_indv7.png",
+      "width": 16,
+      "height": 16,
+      "colorStart": 65536,
+      "colorBytes": 1024,
+      "heightStart": 66560,
+      "heightBytes": 1024
+    },
+    {
+      "index": 10,
+      "name": "tiny_straight_conveyor_indv8.png",
+      "path": "public/sprites/tiny_straight_conveyor_indv/tiny_straight_conveyor_indv8.png",
+      "width": 16,
+      "height": 16,
+      "colorStart": 67584,
+      "colorBytes": 1024,
+      "heightStart": 68608,
+      "heightBytes": 1024
+    },
+    {
+      "index": 11,
       "name": "top_down_tree.png",
       "path": "public/sprites/top_down_tree.png",
       "width": 64,
       "height": 64,
-      "colorStart": 2048,
+      "colorStart": 69632,
       "colorBytes": 16384,
-      "heightStart": 18432,
+      "heightStart": 86016,
       "heightBytes": 16384
     }
   ]
