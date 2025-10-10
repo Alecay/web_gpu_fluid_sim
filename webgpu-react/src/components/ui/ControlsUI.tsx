@@ -36,16 +36,13 @@ export default function ControlsUI() {
       >
         <Card.Body style={{ padding: "0.9rem 1rem" }}>
           <Card.Title style={{ fontSize: 16, marginBottom: 8 }}>
-            Controls
+            Controls - Press <ControlKey>F9</ControlKey> to close
           </Card.Title>
 
           {/* Key help */}
           <div style={{ fontSize: 14, lineHeight: 1.6, marginBottom: 8 }}>
             <div>
               <ControlKey>F11</ControlKey> — Toggle Fullscreen
-            </div>
-            <div>
-              <ControlKey>F9</ControlKey> — Toggle Controls
             </div>
             <div>
               <ControlKey>F8</ControlKey> — Toggle Debug Stats
@@ -78,10 +75,15 @@ export default function ControlsUI() {
               <ControlKey>Tab</ControlKey> — Increase / Decrease Speed
             </div>
             <div>
-              <ControlKey>C</ControlKey> — Clear Map
+              <ControlKey>C</ControlKey> — Clear Map <ControlKey>R</ControlKey>{" "}
+              — Randmoize Map
             </div>
             <div>
-              <ControlKey>R</ControlKey> — Randmoize Map
+              <ControlKey>1</ControlKey> - <ControlKey>5</ControlKey> — Open
+              Build Tabs <ControlKey>B</ControlKey> — Toggle Build Menu
+            </div>
+            <div>
+              <ControlKey>Esc</ControlKey> — Exit Menus
             </div>
           </div>
         </Card.Body>

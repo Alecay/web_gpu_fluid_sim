@@ -400,6 +400,7 @@ export default function BuildMenuPanel({
 
   const openLastKey = () => {
     if (lastKey != null) toggle(lastKey);
+    else toggle(_tabs[0].key);
   };
 
   const closePanel = () => {

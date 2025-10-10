@@ -88,7 +88,7 @@ export default function App() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 1920, height: 1080 });
   const [canvasPosition, setCanvasPosition] = useState({ x: 0, y: 0 });
-  const [canvasPositionEasing, setCanvasPositionEasing] = useState(false);
+  const [canvasPositionEasing, setCanvasPositionEasing] = useState(true);
 
   const [canvasScale, setCanvasScale] = useState(2);
   const [webHandle, setWebHandle] = useState<WebGPUHandle | null>(null);
@@ -619,9 +619,9 @@ export default function App() {
             placeItems: "center",
             transform: `translate3d(${canvasPosition.x}px, ${canvasPosition.y}px, 0)`,
             transition: canvasPositionEasing
-              ? "transform 360ms ease-out"
+              ? "transform 300ms ease-out, width 300ms ease-out, height 300ms ease-out"
               : "none",
-            willChange: "transform",
+            willChange: "transform, width, height",
           }}
         >
           <WebGPUCanvas
