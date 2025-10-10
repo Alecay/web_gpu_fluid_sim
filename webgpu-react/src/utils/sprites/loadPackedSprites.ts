@@ -30,36 +30,23 @@ export type PackedSprite = {
  * Loads precomputed sprite data built by build-sprites.mjs
  * @param baseUrl Folder containing manifest.json and sprites.bin
  */
-export async function loadPackedSprites(
-  baseUrl = "/sprites_built"
-): Promise<PackedSprite[]> {
-  // Load manifest + binary in parallel
-  const [manifest, bin] = await Promise.all([
-    fetch(`${baseUrl}/manifest.json`).then(
-      (r) => r.json() as Promise<SpriteManifest>
-    ),
-    fetch(`${baseUrl}/sprites.bin`).then((r) => r.arrayBuffer()),
+export async function loadPackedSprites(baseUrl = "./sprites_built") {
+  const [manifestRes, binRes] = await Promise.all([
+    fetch(`${baseUrl}/manifest.json`),
+    fetch(`${baseUrl}/sprites_u32.bin`),
   ]);
 
-  const buffer = bin;
-  const sprites: PackedSprite[] = [];
+  const manifest = await manifestRes.json();
+  const bin = await binRes.arrayBuffer();
 
-  for (const e of manifest.entries) {
-    const colorsU32 = new Uint32Array(buffer, e.colorStart, e.colorBytes / 4);
-    const heightData = new Uint32Array(
-      buffer,
-      e.heightStart,
-      e.heightBytes / 4
-    );
+  const spritesU32 = new Uint32Array(bin);
 
-    sprites.push({
-      name: e.name,
-      width: e.width,
-      height: e.height,
-      colorsU32,
-      heightData,
-    });
+  // Build a lookup map (key: path or name, value: index)
+  const spriteMap = new Map<string, number>();
+  for (const entry of manifest.entries) {
+    spriteMap.set(entry.path, entry.index);
+    spriteMap.set(entry.name, entry.index); // optional short key
   }
 
-  return sprites;
+  return { manifest, spritesU32, spriteMap };
 }

@@ -10,6 +10,7 @@ export interface WebGPUHandle {
   randomizeMap: () => void;
   toggleShowDebug: () => void;
   setShowDebug: (s: boolean) => void;
+  spriteMap: Map<string, number>;
   // add more methods as your JS returns them
 }
 

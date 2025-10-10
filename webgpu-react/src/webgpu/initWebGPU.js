@@ -11,6 +11,7 @@ import { createOrUpdateInputBuffer } from "./buffers/inputBuffer";
 import { getBindings } from "./bindingGroups";
 import { inputsEqual } from "../interfaces/Input";
 import { fps } from "../interfaces/FPSMeter";
+import { loadPackedSprites } from "../utils/sprites/loadPackedSprites";
 
 const MAX_SPRITE_WIDTH = 64;
 
@@ -226,9 +227,7 @@ export async function initWebGPU(
   );
 
   console.time("loadPackedSprites");
-  const res = await fetch("./sprites_built/sprites_u32.bin");
-  const buf = await res.arrayBuffer();
-  const spritesU32 = new Uint32Array(buf);
+  const { manifest, spritesU32, spriteMap } = await loadPackedSprites();
   console.timeEnd("loadPackedSprites");
 
   const spriteDataBuffer = device.createBuffer({
@@ -677,6 +676,7 @@ export async function initWebGPU(
     randomizeMap,
     toggleShowDebug,
     setShowDebug,
+    spriteMap,
   };
 
   return handle;

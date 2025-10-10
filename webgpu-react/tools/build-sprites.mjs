@@ -178,6 +178,7 @@ for (let i = 0; i < inputs.length; i++) {
   byteOffset += heightBytes;
 
   entries.push({
+    index: i,
     name: base,
     path: inPath.replace(/\\/g, "/"),
     width,

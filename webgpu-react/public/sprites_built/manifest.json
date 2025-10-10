@@ -12,6 +12,7 @@
   },
   "entries": [
     {
+      "index": 0,
       "name": "Tower.png",
       "path": "public/sprites/Tower.png",
       "width": 16,
@@ -22,6 +23,7 @@
       "heightBytes": 1024
     },
     {
+      "index": 1,
       "name": "top_down_tree.png",
       "path": "public/sprites/top_down_tree.png",
       "width": 64,

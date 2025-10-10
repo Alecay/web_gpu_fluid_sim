@@ -1,6 +1,6 @@
 import { CursorQuery } from "@/interfaces/CursorQuery";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Button, ButtonGroup, Card } from "react-bootstrap";
+import { Button, ButtonGroup, Card, Stack } from "react-bootstrap";
 import { HouseFill, Flower1, Hammer, ShieldFill } from "react-bootstrap-icons";
 
 /**
@@ -10,6 +10,16 @@ import { HouseFill, Flower1, Hammer, ShieldFill } from "react-bootstrap-icons";
  * Selecting a tab slides a content panel up from the bottom of the parent container.
  * Tabs are always visible and move up with the panel when opened.
  */
+
+export type BuildMenuButton = {
+  key: string;
+  icon?: React.ReactNode;
+  label?: string;
+  description?: string;
+  disabled?: boolean;
+  fontSize?: number;
+  onClick?: () => void;
+};
 
 export type BuildMenuTab = {
   key: string;
@@ -49,6 +59,279 @@ export default function BuildMenuPanel({
     aspectRatio: "initial",
     width: "100%",
   };
+
+  const buildButtonStyle: React.CSSProperties = {
+    width: "100px",
+    height: "100px",
+    background: "none",
+    backgroundColor: "none",
+    borderRadius: "0px",
+    border: "solid 4px white",
+    padding: 12,
+    boxShadow: "none",
+  };
+
+  const terraformButtons = useMemo<BuildMenuButton[]>(
+    () => [
+      {
+        key: "terrain",
+        icon: <img src="./icons/icon_paintbrush.png" style={imgStyle} />,
+        label: "Terrain",
+        description: "Raise/Lower/Level the height of the terrain",
+        onClick: () => {
+          closePanel();
+        },
+      },
+      {
+        key: "fluid",
+        icon: <img src="./icons/icon_paintbrush.png" style={imgStyle} />,
+        label: "Fluid",
+        description: "Add or remove fluid.",
+        onClick: () => {
+          closePanel();
+        },
+      },
+      {
+        key: "antifluid",
+        icon: <img src="./icons/icon_paintbrush.png" style={imgStyle} />,
+        label: "Anti-Fluid",
+        description: "Add or remove anti-fluid.",
+        onClick: () => {
+          closePanel();
+        },
+      },
+    ],
+    []
+  );
+
+  const groundUnitsButtons = useMemo<BuildMenuButton[]>(
+    () => [
+      {
+        key: "shooter",
+        icon: <img src="./sprites/shooter.png" style={imgStyle} />,
+        label: "Shooter",
+        description: "A basic short range projectile tower.",
+        onClick: () => {
+          closePanel();
+        },
+      },
+      {
+        key: "cryo",
+        icon: <img src="./sprites/shooter.png" style={imgStyle} />,
+        label: "Cryo",
+        description: "A special tower than can flash freeze fluid in place.",
+        onClick: () => {
+          closePanel();
+        },
+      },
+      {
+        key: "beam",
+        icon: <img src="./sprites/shooter.png" style={imgStyle} />,
+        label: "Beam",
+        description:
+          "A tower that uses concentrated solar rays to evaporate fluid.",
+        onClick: () => {
+          closePanel();
+        },
+      },
+      {
+        key: "electro",
+        icon: <img src="./sprites/shooter.png" style={imgStyle} />,
+        label: "Electro",
+        description:
+          "An electric based tower that shocks the fluid surface speeding up evaporation in an area.",
+        onClick: () => {
+          closePanel();
+        },
+      },
+      {
+        key: "neutralizer",
+        icon: <img src="./sprites/sprayer.png" style={imgStyle} />,
+        label: "Neutralizer",
+        description:
+          "An tower that sprays anit-fluid that destroies fluid on contact.",
+        onClick: () => {
+          closePanel();
+        },
+      },
+    ],
+    []
+  );
+
+  const specialUnitsButtons = useMemo<BuildMenuButton[]>(
+    () => [
+      {
+        key: "terraformer",
+        icon: <img src="./sprites/shooter.png" style={imgStyle} />,
+        label: "Terraformer",
+        description: "A special tower than can raise/lower the terrain height.",
+        onClick: () => {
+          closePanel();
+        },
+      },
+      {
+        key: "packer",
+        icon: <img src="./sprites/shooter.png" style={imgStyle} />,
+        label: "Packer",
+        description:
+          "A preventative tower than can temporarily soak up small amount of fluid.",
+        onClick: () => {
+          closePanel();
+        },
+      },
+      {
+        key: "repulsor",
+        icon: <img src="./sprites/shooter.png" style={imgStyle} />,
+        label: "Repulsor",
+        description: "A tower that creates fields to push back fluid.",
+        onClick: () => {
+          closePanel();
+        },
+      },
+      {
+        key: "alarm",
+        icon: <img src="./sprites/shooter.png" style={imgStyle} />,
+        label: "Alarm",
+        description:
+          "An tower that sounds an alarm when fluid gets in a detection radius.",
+        onClick: () => {
+          closePanel();
+        },
+      },
+    ],
+    []
+  );
+
+  const econUnitsButtons = useMemo<BuildMenuButton[]>(
+    () => [
+      {
+        key: "solarPanel",
+        icon: <img src="./sprites/solar_panel.png" style={imgStyle} />,
+        label: "Solar Panel",
+        description: "Generates energy in the sun.",
+        onClick: () => {
+          closePanel();
+        },
+      },
+      {
+        key: "biomassBurner",
+        icon: <img src="./sprites/shooter.png" style={imgStyle} />,
+        label: "Biomass Burner",
+        fontSize: 14,
+        description: "Burns biomass to generate small amounts of power.",
+        onClick: () => {
+          closePanel();
+        },
+      },
+    ],
+    []
+  );
+
+  const infrastructureUnitButtons = useMemo<BuildMenuButton[]>(
+    () => [
+      {
+        key: "connector",
+        icon: <img src="./sprites/shooter.png" style={imgStyle} />,
+        label: "Connector",
+        description:
+          "A multi-purpose connection node used to transfer power and resources a short.",
+        onClick: () => {
+          closePanel();
+        },
+      },
+      {
+        key: "longConnector",
+        icon: <img src="./sprites/shooter.png" style={imgStyle} />,
+        label: "Long Connector",
+        fontSize: 14,
+        description:
+          "A multi-purpose connection node used to transfer power and resources a far distance.",
+        onClick: () => {
+          closePanel();
+        },
+      },
+      {
+        key: "farmer",
+        icon: <img src="./sprites/shooter.png" style={imgStyle} />,
+        label: "Farmer",
+        description:
+          "An automated farming plot used to generate biomass resources. Requires light to operate.",
+        onClick: () => {
+          closePanel();
+        },
+      },
+      {
+        key: "light",
+        icon: <img src="./sprites/shooter.png" style={imgStyle} />,
+        label: "Light",
+        description:
+          "A powered light source that requires a large amount of energy to operate.",
+        onClick: () => {
+          closePanel();
+        },
+      },
+      {
+        key: "battery",
+        icon: <img src="./sprites/shooter.png" style={imgStyle} />,
+        label: "Battery",
+        description: "A way to store electric power.",
+        onClick: () => {
+          closePanel();
+        },
+      },
+    ],
+    []
+  );
+
+  const getBuildButtons = (buttons: BuildMenuButton[]) => {
+    return (
+      <div className="d-flex w-100 justify-content-center align-items-top gap-3">
+        {buttons.map((btn) => (
+          <div
+            key={`${btn.key}-build-group`}
+            style={{
+              width: buildButtonStyle.width,
+              display: "grid",
+              placeItems: "center",
+            }}
+          >
+            <Button
+              key={`${btn.key}-build-button`}
+              disabled={btn.disabled}
+              title={btn.label}
+              style={buildButtonStyle}
+              onClick={btn.onClick}
+              onMouseEnter={() => {
+                if (!btn.disabled) {
+                  setHotbarTitle(btn.label ?? null);
+                  setHotbarLabel(btn.description ?? null);
+                }
+              }}
+              onMouseLeave={() => {
+                if (!btn.disabled) {
+                  setHotbarTitle(null);
+                  setHotbarLabel(null);
+                }
+              }}
+            >
+              {btn.icon}
+            </Button>
+            <p
+              key={`${btn.key}-build-button-label`}
+              style={{
+                textAlign: "center",
+                fontSize: btn.fontSize ?? 16,
+                whiteSpace: "nowrap",
+              }}
+            >
+              {btn.label}
+            </p>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   const defaultTabs = useMemo<BuildMenuTab[]>(
     () => [
       {
@@ -56,24 +339,35 @@ export default function BuildMenuPanel({
         icon: <img src="./icons/icon_paintbrush.png" style={imgStyle} />,
         label: "Terraform",
         hotkey: "1",
+        content: getBuildButtons(terraformButtons),
       },
       {
         key: "econ",
         icon: <img src="./icons/icon_coin.png" style={imgStyle} />,
         label: "Economy",
         hotkey: "2",
+        content: getBuildButtons(econUnitsButtons),
       },
       {
-        key: "power",
+        key: "infrastructure",
         icon: <img src="./icons/icon_power.png" style={imgStyle} />,
-        label: "Power",
+        label: "Infrastructure",
         hotkey: "3",
+        content: getBuildButtons(infrastructureUnitButtons),
       },
       {
-        key: "defend",
+        key: "groundUnits",
         icon: <img src="./icons/icon_shield.png" style={imgStyle} />,
-        label: "Defend",
+        label: "Ground Units",
         hotkey: "4",
+        content: getBuildButtons(groundUnitsButtons),
+      },
+      {
+        key: "specialUnits",
+        icon: <img src="./icons/icon_shield.png" style={imgStyle} />,
+        label: "Special Units",
+        hotkey: "5",
+        content: getBuildButtons(specialUnitsButtons),
       },
     ],
     []
@@ -81,8 +375,13 @@ export default function BuildMenuPanel({
 
   const _tabs = tabs?.length ? tabs : defaultTabs;
   const [activeKey, setActiveKey] = useState<string | null>(initialActiveKey);
-  const dockRef = useRef<HTMLDivElement | null>(null);
   const [lastKey, setLastKey] = useState<string | null>(initialActiveKey);
+  const [hoverKey, setHoverKey] = useState<string | null>(initialActiveKey);
+  const dockRef = useRef<HTMLDivElement | null>(null);
+
+  const [hoverButtonKey, setHoverButtonKey] = useState<string | null>(null);
+  const [hotbarTitle, setHotbarTitle] = useState<string | null>(null);
+  const [hotbarLabel, setHotbarLabel] = useState<string | null>(null);
 
   const toggle = (key: string) => {
     const next = activeKey === key ? null : key;
@@ -105,6 +404,26 @@ export default function BuildMenuPanel({
   const buttonWidth = 44;
   const buttonHeight = 44;
   const buttonMargin = 2.5;
+
+  const tabStyle: React.CSSProperties = {
+    borderTop: "solid white 4px",
+    borderLeft: "solid white 4px",
+    borderRight: "solid white 4px",
+    borderBottom: "none",
+    borderRadius: "0px 0px 0px 0px",
+    width: buttonWidth,
+    height: buttonHeight,
+    margin: `0px ${buttonMargin}px`,
+    backgroundColor: "rgba(0,0,0,.35)",
+    background: "none",
+    display: "inline-flex",
+    alignItems: "flex-start",
+    padding: "4px",
+    transition: "ease-in-out 250ms",
+  };
+
+  const selectedTabStyle = { ...tabStyle, height: buttonHeight * 2 };
+  const hoverTabStyle = { ...tabStyle, height: buttonHeight * 1.5 };
 
   // Close on click outside (capture phase so game canvas stopPropagation won't block it)
   useEffect(() => {
@@ -206,34 +525,23 @@ export default function BuildMenuPanel({
             >
               {_tabs.map((t) => {
                 const selected = activeKey === t.key;
+                const hovered = hoverKey === t.key;
                 return (
                   <Button
                     className="tabButton"
                     key={t.key}
                     onClick={() => !t.disabled && toggle(t.key)}
+                    onMouseEnter={() => !t.disabled && setHoverKey(t.key)}
+                    onMouseLeave={() => !t.disabled && setHoverKey(null)}
                     // variant={selected ? "warning" : "dark"}
                     disabled={t.disabled}
-                    style={{
-                      borderTop: "solid white 4px",
-                      borderLeft: "solid white 4px",
-                      borderRight: "solid white 4px",
-                      borderBottom: "none",
-                      borderRadius: "0px 0px 0px 0px",
-                      width: buttonWidth,
-                      height: selected ? buttonHeight * 2 : buttonHeight,
-                      margin: `0px ${buttonMargin}px`,
-                      //   display: "grid",
-                      //   placeItems: "center",
-                      //   boxShadow: selected
-                      //     ? "0 0 0 2px rgba(0,0,0,.5) inset, 0 4px 10px rgba(0,0,0,.35)"
-                      //     : "0 2px 6px rgba(0,0,0,.35)",
-                      backgroundColor: "rgba(0,0,0,.35)",
-                      background: "none",
-                      display: "inline-flex",
-                      alignItems: "flex-start",
-                      outline: "none !important",
-                      padding: "4px",
-                    }}
+                    style={
+                      selected
+                        ? selectedTabStyle
+                        : hovered
+                        ? hoverTabStyle
+                        : tabStyle
+                    }
                     aria-label={t.label}
                     title={t.label}
                   >
@@ -270,27 +578,46 @@ export default function BuildMenuPanel({
                 padding: 12,
               }}
             >
-              {activeKey ? (
-                _tabs.find((t) => t.key === activeKey)?.content ?? (
-                  <div style={{ opacity: 0.8, fontSize: 14 }}>
-                    <p style={{ marginBottom: 8 }}>
-                      Add your build buttons here for the <b>{activeKey}</b>{" "}
-                      tab.
-                    </p>
-                    <p style={{ margin: 0 }}>
-                      This area is fully customizable.
-                    </p>
-                  </div>
-                )
-              ) : (
-                <div style={{ opacity: 0.65 }}>
-                  Choose a tab to open the menu.
-                </div>
-              )}
+              {activeKey
+                ? _tabs.find((t) => t.key === activeKey)?.content ?? (
+                    <div style={{ opacity: 0.8, fontSize: 14 }}>
+                      <p style={{ marginBottom: 8 }}>
+                        Add your build buttons here for the <b>{activeKey}</b>
+                        tab.
+                      </p>
+                      <p style={{ margin: 0 }}>
+                        This area is fully customizable.
+                      </p>
+                    </div>
+                  )
+                : _tabs.find((t) => t.key === lastKey)?.content ?? (
+                    <div style={{ opacity: 0.8, fontSize: 14 }}>
+                      <p style={{ marginBottom: 8 }}>
+                        Add your build buttons here for the <b>{activeKey}</b>{" "}
+                        tab.
+                      </p>
+                      <p style={{ margin: 0 }}>
+                        This area is fully customizable.
+                      </p>
+                    </div>
+                  )}
             </Card.Body>
           </Card>
           <div style={{ position: "relative", bottom: panelHeight }}>
             {children}
+            <div
+              style={{
+                position: "absolute",
+                bottom: 0,
+                left: "50%",
+                transform: "translate(-50%)",
+                display: "grid",
+                placeItems: "center",
+              }}
+            >
+              <p>{hotbarTitle}</p>
+              <p>{hotbarLabel}</p>
+            </div>
           </div>
         </div>
       </div>
