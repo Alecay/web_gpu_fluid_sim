@@ -122,6 +122,7 @@ export async function initWebGPU(
     mouse0Held: initialInput.mouse0Held,
     mouse1Held: initialInput.mouse1Held,
     mouseRadius: initialInput.mouseRadius,
+    cursorType: initialInput.cursorType,
     visibleRect: initialInput.visibleRect,
   });
 
@@ -214,6 +215,7 @@ export async function initWebGPU(
         mouse1Held: newInput.mouse1Held,
         mouse2Held: newInput.mouse2Held,
         mouseRadius: newInput.mouseRadius,
+        cursorType: newInput.cursorType,
         visibleRect: newInput.visibleRect,
       },
       inputUniformBuffer
@@ -248,7 +250,7 @@ export async function initWebGPU(
   const { manifest, spritesU32, spriteMap } = await loadPackedSprites();
   console.timeEnd("loadPackedSprites");
 
-  console.log(spriteMap);
+  // console.log(spriteMap);
 
   const spriteDataBuffer = device.createBuffer({
     label: "Sprite Data",
@@ -544,7 +546,8 @@ export async function initWebGPU(
       debugRenderPass.end();
     }
 
-    if (true) {
+    const animate = true;
+    if (animate) {
       const spriteRenderPass = encoder.beginComputePass({
         label: "Sprite Render Compute Pass",
       });

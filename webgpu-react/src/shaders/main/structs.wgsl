@@ -12,6 +12,7 @@ struct Input {
   mouse1Held   : f32,       // 3: 0/1
   mouse2Held   : f32,       
   mouseRadius  : f32,       // 4
+  cursorType   : u32, // 0 - None, 1 - radius, 2 - box
   // (12 bytes implicit padding here to align next member to 16B)
   visibleRect  : vec4<u32>, //  (x0, y0, x1, y1) in canvas coords
 };                          // total size = 48 bytes

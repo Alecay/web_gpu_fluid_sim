@@ -28,19 +28,7 @@ fn fs(@builtin(position) frag_pos: vec4f) -> @location(0) vec4f {
     let layer4Index = uView.size.x * uView.size.y * 4;
     var subPixelColor = unpack4x8unorm(outputTex[layer4Index + canvasX + (uView.size.x * pixelScale) * canvasY]);
 
-    let mouseWidth  = 2.0;
-    let inOuter = inside_circle(coord, uInput.mousePos, uInput.mouseRadius);
-    let inInner = inside_circle(coord, uInput.mousePos, uInput.mouseRadius - mouseWidth);
-    
-    let isCursorSpot = 
-        (x == uInput.mousePos.x && y == uInput.mousePos.y) || 
-        isDirectNeighbor(coord, uInput.mousePos);
-    
-    var cursorOutline = select(
-            vec4f(0.0, 0.0, 0.0, 0.0), 
-            vec4f(0.0, 0.0, 0.0, 0.5), 
-            (inOuter && !inInner) || isCursorSpot
-        );
+    var cursorOutline =  getCursorColor(coord);
 
     var combinedColor = vec4f(0.0, 0.0, 0.0, 0.0);
     combinedColor = over_rgba(combinedColor, terrainColor);

@@ -1,5 +1,7 @@
 import { VisibleRect } from "./VisibleRect";
 
+export type CursorType = "none" | "radius" | "box";
+
 export interface Input {
   mouse0Held: boolean;
   mouse1Held: boolean;
@@ -11,7 +13,7 @@ export interface Input {
 
   mouseRadius: number;
   mouseMoved: boolean;
-  cursorVisible: boolean;
+  cursorType: CursorType;
   mousePosition: { x: number; y: number };
   visibleRect: VisibleRect;
   visibleRectChanged: boolean;
@@ -28,7 +30,7 @@ export function inputsEqual(a: Input, b: Input): boolean {
     a.mouse2Pressed === b.mouse2Pressed &&
     a.mouseRadius === b.mouseRadius &&
     a.mouseMoved === b.mouseMoved &&
-    a.cursorVisible === b.cursorVisible &&
+    a.cursorType === b.cursorType &&
     a.mousePosition.x === b.mousePosition.x &&
     a.mousePosition.y === b.mousePosition.y &&
     a.visibleRect.x0 === b.visibleRect.x0 &&
@@ -51,7 +53,7 @@ export const DefaultInput: Input = {
   mouse2Pressed: false,
   mouseRadius: 30,
   mouseMoved: false,
-  cursorVisible: true,
+  cursorType: "none",
   mousePosition: { x: 0, y: 0 },
   visibleRect: {
     x0: 0,

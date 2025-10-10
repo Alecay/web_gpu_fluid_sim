@@ -2,6 +2,7 @@ import { CursorQuery } from "@/interfaces/CursorQuery";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Button, ButtonGroup, Card, Stack } from "react-bootstrap";
 import { HouseFill, Flower1, Hammer, ShieldFill } from "react-bootstrap-icons";
+import { CursorKind } from "./CustomCursor";
 
 /**
  * BuildMenuPanel
@@ -31,6 +32,8 @@ export type BuildMenuTab = {
 };
 
 export type BuildMenuPanelProps = {
+  setCursorOverUI: (value: React.SetStateAction<boolean>) => void;
+  setCursorMode: (value: React.SetStateAction<CursorKind>) => void;
   tabs?: BuildMenuTab[];
   initialActiveKey?: string | null;
   onTabChange?: (nextKey: string | null) => void;
@@ -43,6 +46,8 @@ export type BuildMenuPanelProps = {
 };
 
 export default function BuildMenuPanel({
+  setCursorOverUI,
+  setCursorMode,
   tabs,
   initialActiveKey = null,
   onTabChange,
@@ -69,6 +74,7 @@ export default function BuildMenuPanel({
     border: "solid 4px white",
     padding: 12,
     boxShadow: "none",
+    cursor: "none",
   };
 
   const terraformButtons = useMemo<BuildMenuButton[]>(
@@ -298,19 +304,21 @@ export default function BuildMenuPanel({
             <Button
               key={`${btn.key}-build-button`}
               disabled={btn.disabled}
-              title={btn.label}
+              // title={btn.label}
               style={buildButtonStyle}
               onClick={btn.onClick}
               onMouseEnter={() => {
                 if (!btn.disabled) {
                   setHotbarTitle(btn.label ?? null);
                   setHotbarLabel(btn.description ?? null);
+                  setCursorMode("link");
                 }
               }}
               onMouseLeave={() => {
                 if (!btn.disabled) {
                   setHotbarTitle(null);
                   setHotbarLabel(null);
+                  setCursorMode("default");
                 }
               }}
             >
@@ -420,6 +428,7 @@ export default function BuildMenuPanel({
     alignItems: "flex-start",
     padding: "4px",
     transition: "ease-in-out 250ms",
+    cursor: "none",
   };
 
   const selectedTabStyle = { ...tabStyle, height: buttonHeight * 2 };
@@ -479,6 +488,7 @@ export default function BuildMenuPanel({
           bottom: 0,
           pointerEvents: "none", // canvas can still receive events except over our UI
           zIndex: 10,
+          cursor: "none",
         }}
       >
         {/* DOCK: contains tabs + sliding content. We slide the whole dock by panelHeight when closed, so tabs remain visible. */}
@@ -522,6 +532,8 @@ export default function BuildMenuPanel({
                 pointerEvents: "auto",
               }}
               onMouseDown={(e) => e.preventDefault()}
+              onMouseEnter={() => setCursorOverUI(true)}
+              onMouseLeave={() => setCursorOverUI(false)}
             >
               {_tabs.map((t) => {
                 const selected = activeKey === t.key;
@@ -531,8 +543,16 @@ export default function BuildMenuPanel({
                     className="tabButton"
                     key={t.key}
                     onClick={() => !t.disabled && toggle(t.key)}
-                    onMouseEnter={() => !t.disabled && setHoverKey(t.key)}
-                    onMouseLeave={() => !t.disabled && setHoverKey(null)}
+                    onMouseEnter={() => {
+                      !t.disabled && setHoverKey(t.key);
+                      setCursorMode("link");
+                      setHotbarTitle(t.label ?? null);
+                    }}
+                    onMouseLeave={() => {
+                      !t.disabled && setHoverKey(null);
+                      setCursorMode("default");
+                      setHotbarTitle(null);
+                    }}
                     // variant={selected ? "warning" : "dark"}
                     disabled={t.disabled}
                     style={
@@ -543,7 +563,7 @@ export default function BuildMenuPanel({
                         : tabStyle
                     }
                     aria-label={t.label}
-                    title={t.label}
+                    // title={t.label}
                   >
                     {t.icon}
                     {/* <span style={{ fontSize: 20, lineHeight: 0 }}>
@@ -568,6 +588,8 @@ export default function BuildMenuPanel({
               backgroundColor: "rgba(46, 44, 44, 0.51)",
               borderTop: "solid white 4px",
             }}
+            onMouseEnter={() => setCursorOverUI(true)}
+            onMouseLeave={() => setCursorOverUI(false)}
           >
             <Card.Body
               style={{

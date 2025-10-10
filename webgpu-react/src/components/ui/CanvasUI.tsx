@@ -7,13 +7,15 @@ import HotkeyModal from "./HotkeyModal";
 import NoiseSettingsForm, { NoiseUISettings } from "../NoiseSettingsForm";
 import ControlsUI, { ControlKey } from "./ControlsUI";
 import GameSpeedControlsUI, { GameSpeed } from "./GameSpeedControlsUI";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { fps } from "../../interfaces/FPSMeter";
 import DebugStatsUI from "./DebugStatsUI";
 import HotbarUI from "./HotbarUI";
 import BuildMenuPanel from "./BuildMenuPanel";
+import CustomCursor, { CursorKind } from "./CustomCursor";
 
 interface CanvasUIProps {
+  containerRef: React.RefObject<HTMLElement | null>;
   settings: NoiseUISettings;
   setSettings: React.Dispatch<React.SetStateAction<NoiseUISettings>>;
   input: Input;
@@ -26,9 +28,14 @@ interface CanvasUIProps {
   simIndex: number;
   showControlsUI: boolean;
   showDebugUI: boolean;
+  cursorVisible: boolean;
+  cursorMode: CursorKind;
+  setCursorMode: (value: React.SetStateAction<CursorKind>) => void;
+  setCursorOverUI: (value: React.SetStateAction<boolean>) => void;
 }
 
 export default function CanvasUI({
+  containerRef,
   settings,
   setSettings,
   input,
@@ -41,7 +48,42 @@ export default function CanvasUI({
   simIndex,
   showControlsUI,
   showDebugUI,
+  cursorVisible,
+  cursorMode,
+  setCursorMode,
+  setCursorOverUI,
 }: CanvasUIProps) {
+  const cursorImages = {
+    default: {
+      src: "./cursors/pointer.png",
+      width: 24,
+      height: 24,
+      hotspotX: 2,
+      hotspotY: 2,
+    },
+    link: {
+      src: "./cursors/link.png",
+      width: 24,
+      height: 24,
+      hotspotX: 2,
+      hotspotY: 2,
+    },
+    grab: {
+      src: "./cursors/grab_hover.png",
+      width: 24,
+      height: 24,
+      hotspotX: 12,
+      hotspotY: 12,
+    },
+    grabbing: {
+      src: "./cursors/grab.png",
+      width: 24,
+      height: 24,
+      hotspotX: 12,
+      hotspotY: 12,
+    },
+  } as const;
+
   return (
     <div
       style={{
@@ -78,7 +120,10 @@ export default function CanvasUI({
         />
       </div>
 
-      <BuildMenuPanel>
+      <BuildMenuPanel
+        setCursorOverUI={setCursorOverUI}
+        setCursorMode={setCursorMode}
+      >
         <MapCoordDisplay input={input} />
         <GameSpeedControlsUI
           gameSpeed={gameSpeed}
@@ -91,6 +136,8 @@ export default function CanvasUI({
               simulationSubSteps: paused ? 0 : Math.ceil(4 * gameSpeed),
             });
           }}
+          setCursorOverUI={setCursorOverUI}
+          setCursorMode={setCursorMode}
         />
         <HeightDisplay cursorQuery={cursorQuery} />
       </BuildMenuPanel>
@@ -105,6 +152,16 @@ export default function CanvasUI({
           }}
         />
       </HotkeyModal> */}
+
+      {/* custom cursor overlays inside container */}
+      <CustomCursor
+        mode={cursorMode}
+        images={cursorImages}
+        containerRef={containerRef} // or omit to cover the whole window
+        pixelated // great for your pixel-art aesthetic
+        zIndex={999999}
+        visible={cursorVisible}
+      />
     </div>
   );
 }

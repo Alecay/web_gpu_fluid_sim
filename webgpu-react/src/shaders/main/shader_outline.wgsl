@@ -12,6 +12,8 @@
 
 //{sprite_helpers}
 
+//{cursor_helpers}
+
 // Binding Group 0 - Uniforms
 @group(0) @binding(0)   var<uniform>             uView                       : View;
 @group(0) @binding(1)   var<uniform>             uInput                      : Input;

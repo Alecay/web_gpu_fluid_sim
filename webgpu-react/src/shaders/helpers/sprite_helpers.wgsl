@@ -4,8 +4,8 @@ struct SpriteData
 {
     width       : u32,
     height      : u32,
-    _pad0        : u32,
-    _pad1        : u32,
+    _pad0       : u32,
+    _pad1       : u32,
     colors      : array<u32, MAX_SPRITE_SIZE * 2u>
 }
 

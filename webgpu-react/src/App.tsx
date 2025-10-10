@@ -23,6 +23,7 @@ import {
   GameSpeed,
 } from "./components/ui/GameSpeedControlsUI";
 import WebCanvasSprite from "./components/WebCanvasSptire";
+import { CursorKind } from "./components/ui/CustomCursor";
 
 const isEditableTarget = (t: EventTarget | null) => {
   const el = t as HTMLElement | null;
@@ -63,11 +64,17 @@ export default function App() {
 
   const isDevBuid = import.meta.env.DEV;
   // Game State
+  const windowRef = useRef<HTMLDivElement | null>(null);
   const [paused, setPaused] = React.useState(false);
   const [gameSpeed, setGameSpeed] = React.useState<GameSpeed>(1);
   const [simIndex, setSimIndex] = useState(0);
   const [showControlsUI, setShowControlsUI] = useState(!isDevBuid);
   const [showDebugUI, setShowDebugUI] = useState(false);
+  const [cursorOverUI, setCursorOverUI] = useState(false);
+  const [cursorMode, setCursorMode] = useState<CursorKind>("default");
+  useEffect(() => {
+    setInput((p) => ({ ...p, cursorType: cursorOverUI ? "none" : "radius" }));
+  }, [cursorOverUI]);
 
   const [input, setInput] = useState<Input>(DefaultInput);
   const inputRef = useRef(input);
@@ -586,6 +593,7 @@ export default function App() {
   return (
     <>
       <div
+        ref={windowRef}
         id="windowDiv"
         style={{
           position: "fixed",
@@ -637,6 +645,7 @@ export default function App() {
         </div>
 
         <CanvasUI
+          containerRef={windowRef}
           settings={settings}
           setSettings={setSettings}
           input={input}
@@ -652,6 +661,10 @@ export default function App() {
           simIndex={simIndex}
           showControlsUI={showControlsUI}
           showDebugUI={showDebugUI}
+          cursorVisible={cursorOverUI}
+          cursorMode={cursorMode}
+          setCursorMode={setCursorMode}
+          setCursorOverUI={setCursorOverUI}
         />
       </div>
     </>
