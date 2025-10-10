@@ -12,7 +12,7 @@ struct View {
 export const ViewLayout = defineStructLayout([
   { name: "size", type: "vec2u" },
   { name: "time", type: "f32" },
-  { name: "simIndex", type: "u32" },
+  { name: "frameIndex", type: "u32" },
   { name: "showDebug", type: "u32" },
   { name: "pixelScale", type: "u32" },
   // padding
@@ -24,7 +24,7 @@ export const ViewLayout = defineStructLayout([
  *   width : number,
  *   height : number,
  *   time : number,
- *   simIndex: number,
+ *   frameIndex: number,
  *   showDebug: boolean,
  *   pixelScale : number,
  * }} settings
@@ -34,7 +34,7 @@ export function createOrUpdateViewBuffer(device, settings, existing) {
   const params = {
     size: [settings.width, settings.height],
     time: settings.time,
-    simIndex: settings.simIndex,
+    frameIndex: settings.frameIndex,
     showDebug: settings.showDebug ? 1 : 0,
     pixelScale: settings.pixelScale,
   };

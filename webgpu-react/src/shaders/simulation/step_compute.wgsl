@@ -26,6 +26,8 @@ fn step(@builtin(global_invocation_id) gid : vec3<u32>) {
     let chunkPos = getChunkPos(coord, chunkSize);
     let shouldSim = chunkRegionHasFluid(chunkPos, chunkSize);
 
+    // let simTime = uSim.simIndex % 10000u < 5000u;
+
     if(shouldSim)
     {
       var futureCellValue = getFurtureCellFAmount(coord);

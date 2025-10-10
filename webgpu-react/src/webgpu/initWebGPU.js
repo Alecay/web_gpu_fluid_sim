@@ -79,7 +79,7 @@ export async function initWebGPU(
   });
 
   var currentTime = 0;
-  var frameIdx = 0;
+  var frameIndex = 0;
   var simIndex = 0;
   var showDebug = isDevBuid;
 
@@ -95,7 +95,7 @@ export async function initWebGPU(
     width: noiseSettings.width,
     height: noiseSettings.height,
     time: 0,
-    simIndex: 0,
+    frameIndex,
     showDebug,
     pixelScale: noiseSettings.pixelScale,
   });
@@ -107,7 +107,7 @@ export async function initWebGPU(
         width: noiseSettings.width,
         height: noiseSettings.height,
         time: currentTime,
-        simIndex,
+        frameIndex,
         showDebug,
         pixelScale: noiseSettings.pixelScale,
       },
@@ -139,6 +139,24 @@ export async function initWebGPU(
     device,
     noiseSettings.colors
   );
+
+  const OFFSET_ALIGN = 256; // required for dynamic offsets on uniforms
+  const SIM_SLOT_SIZE = 16; // our struct is 16 bytes, but we *stride* by 256
+  const SIM_SLOTS = 32; // up to how many substeps you’ll encode
+
+  const simBuffer = device.createBuffer({
+    label: "Sim Index Buffer",
+    size: OFFSET_ALIGN * SIM_SLOTS,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  });
+
+  const updateSimBuffer = (baseIndex) => {
+    for (let i = 0; i < SIM_SLOTS; i++) {
+      const tmp = new ArrayBuffer(SIM_SLOT_SIZE);
+      new Uint32Array(tmp)[0] = baseIndex + i;
+      device.queue.writeBuffer(simBuffer, i * OFFSET_ALIGN, tmp);
+    }
+  };
 
   /**
    * Get the chunk index (which chunk a cell belongs to).
@@ -230,6 +248,8 @@ export async function initWebGPU(
   const { manifest, spritesU32, spriteMap } = await loadPackedSprites();
   console.timeEnd("loadPackedSprites");
 
+  console.log(spriteMap);
+
   const spriteDataBuffer = device.createBuffer({
     label: "Sprite Data",
     size: spritesU32.byteLength,
@@ -283,7 +303,7 @@ export async function initWebGPU(
     // device.queue.submit([]);
 
     // reset some values
-    frameIdx = 0;
+    frameIndex = 0;
     simIndex = 0;
     updateTerrainTexture = true;
 
@@ -321,6 +341,7 @@ export async function initWebGPU(
     prevCellsBuffer,
     nextCellsBuffer,
     terrainBuffer,
+    simBuffer,
     terrainColorsBuffer,
     viewUniformBuffer,
     inputUniformBuffer,
@@ -366,11 +387,14 @@ export async function initWebGPU(
       lastInput = input;
     }
 
-    const preformQuery = frameIdx % 6 === 0;
+    const preformQuery = frameIndex % 6 === 0;
 
     device.pushErrorScope("validation");
     currentTime = tMs * 0.001;
     updateViewBuffer();
+    updateSimBuffer(simIndex);
+
+    var dynamicSimOffset = 0;
 
     const encoder = device.createCommandEncoder({ label: "Encoder" });
 
@@ -379,16 +403,21 @@ export async function initWebGPU(
       const stepPass = encoder.beginComputePass({ label: "Step Compute Pass" });
       stepPass.setPipeline(bindings.piplines.stepComputePipeline);
       for (let i = 0; i < input.simulationSubSteps * 2; i++) {
+        dynamicSimOffset = i * OFFSET_ALIGN;
         stepPass.setBindGroup(
           0,
           aToB
             ? bindings.bindGroups.unifiedComputeBG_A
-            : bindings.bindGroups.unifiedComputeBG_B
+            : bindings.bindGroups.unifiedComputeBG_B,
+          [dynamicSimOffset]
         );
         stepPass.dispatchWorkgroups(dispatchX, dispatchY, 1);
         aToB = !aToB;
-        simIndex++;
-        updateViewBuffer();
+        // simIndex++;
+        // updateViewBuffer();
+
+        simIndex = (simIndex + 1) >>> 0; // force unsigned 32-bit wrap
+        if (simIndex > 4000000000) simIndex = 0; // optional manual reset
       }
 
       // console.log("SimIndex: ", simIndex);
@@ -397,13 +426,13 @@ export async function initWebGPU(
       stepPass.end();
     }
 
-    if (frameIdx === 0 || input.mouse0Held || input.mouse1Held) {
+    if (frameIndex === 0 || input.mouse0Held || input.mouse1Held) {
       // updateTerrainTexture = true;
       //updateNormals = true;
       updateShadowTexture = true;
     }
 
-    if (frameIdx < 60) {
+    if (frameIndex < 60) {
       updateTerrainTexture = true;
       updateNormals = true;
       updateShadowTexture = true;
@@ -426,7 +455,8 @@ export async function initWebGPU(
         0,
         aToB
           ? bindings.bindGroups.unifiedComputeBG_A
-          : bindings.bindGroups.unifiedComputeBG_B
+          : bindings.bindGroups.unifiedComputeBG_B,
+        [dynamicSimOffset]
       );
       normalPass.dispatchWorkgroups(dispatchX, dispatchY, 1);
       normalPass.end();
@@ -446,7 +476,8 @@ export async function initWebGPU(
         0,
         aToB
           ? bindings.bindGroups.unifiedComputeBG_A
-          : bindings.bindGroups.unifiedComputeBG_B
+          : bindings.bindGroups.unifiedComputeBG_B,
+        [dynamicSimOffset]
       );
       terrainRenderPass.dispatchWorkgroups(dispatchX, dispatchY, 1);
       terrainRenderPass.end();
@@ -465,7 +496,8 @@ export async function initWebGPU(
         0,
         aToB
           ? bindings.bindGroups.unifiedComputeBG_A
-          : bindings.bindGroups.unifiedComputeBG_B
+          : bindings.bindGroups.unifiedComputeBG_B,
+        [dynamicSimOffset]
       );
       shadowRenderPass.dispatchWorkgroups(dispatchX, dispatchY, 1);
       shadowRenderPass.end();
@@ -485,7 +517,8 @@ export async function initWebGPU(
         0,
         aToB
           ? bindings.bindGroups.unifiedComputeBG_A
-          : bindings.bindGroups.unifiedComputeBG_B
+          : bindings.bindGroups.unifiedComputeBG_B,
+        [dynamicSimOffset]
       );
       fluidRenderPass.dispatchWorkgroups(dispatchX, dispatchY, 1);
       fluidRenderPass.end();
@@ -493,7 +526,7 @@ export async function initWebGPU(
       input = { ...input, visibleRectChanged: false };
     }
 
-    if (frameIdx % 10 == 0 && showDebug) {
+    if (frameIndex % 10 == 0 && showDebug) {
       const debugRenderPass = encoder.beginComputePass({
         label: "Debug Texture Compute Pass",
       });
@@ -504,13 +537,14 @@ export async function initWebGPU(
         0,
         aToB
           ? bindings.bindGroups.unifiedComputeBG_A
-          : bindings.bindGroups.unifiedComputeBG_B
+          : bindings.bindGroups.unifiedComputeBG_B,
+        [dynamicSimOffset]
       );
       debugRenderPass.dispatchWorkgroups(dispatchX, dispatchY, 1);
       debugRenderPass.end();
     }
 
-    if (input.mouse0Pressed) {
+    if (true) {
       const spriteRenderPass = encoder.beginComputePass({
         label: "Sprite Render Compute Pass",
       });
@@ -521,7 +555,8 @@ export async function initWebGPU(
         0,
         aToB
           ? bindings.bindGroups.unifiedComputeBG_A
-          : bindings.bindGroups.unifiedComputeBG_B
+          : bindings.bindGroups.unifiedComputeBG_B,
+        [dynamicSimOffset]
       );
       spriteRenderPass.dispatchWorkgroups(
         Math.ceil(MAX_SPRITE_WIDTH / WG_X),
@@ -541,13 +576,14 @@ export async function initWebGPU(
         0,
         aToB
           ? bindings.bindGroups.unifiedComputeBG_A
-          : bindings.bindGroups.unifiedComputeBG_B
+          : bindings.bindGroups.unifiedComputeBG_B,
+        [dynamicSimOffset]
       );
       cursorQueryPass.dispatchWorkgroups(1, 1, 1);
       cursorQueryPass.end();
     }
 
-    if (frameIdx % 60 == 0) {
+    if (frameIndex % 60 == 0) {
       const totalQueryPass = encoder.beginComputePass({
         label: "Total Query Pass",
       });
@@ -556,7 +592,8 @@ export async function initWebGPU(
         0,
         aToB
           ? bindings.bindGroups.unifiedComputeBG_A
-          : bindings.bindGroups.unifiedComputeBG_B
+          : bindings.bindGroups.unifiedComputeBG_B,
+        [dynamicSimOffset]
       );
       totalQueryPass.dispatchWorkgroups(1, 1, 1);
       totalQueryPass.end();
@@ -571,7 +608,8 @@ export async function initWebGPU(
         0,
         aToB
           ? bindings.bindGroups.unifiedComputeBG_A
-          : bindings.bindGroups.unifiedComputeBG_B
+          : bindings.bindGroups.unifiedComputeBG_B,
+        [dynamicSimOffset]
       );
       chunkDataPass.dispatchWorkgroups(chunksX, chunksY, 1);
       chunkDataPass.end();
@@ -648,7 +686,7 @@ export async function initWebGPU(
 
     fps.end(tMs);
 
-    frameIdx++;
+    frameIndex++;
 
     rafId = requestAnimationFrame(frame);
   }

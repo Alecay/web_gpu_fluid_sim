@@ -51,6 +51,8 @@ if (inputs.length === 0) {
   process.exit(1);
 }
 
+inputs.sort();
+
 await fs.promises.mkdir(outDir, { recursive: true });
 
 const outBin = path.join(outDir, "sprites.bin");

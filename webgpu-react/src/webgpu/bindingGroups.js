@@ -1,4 +1,5 @@
 export function getBindings(device, module, format, buffers) {
+  const SIM_SLOT_SIZE = 16;
   const bufferSettings = {
     uView: {
       binding: 0,
@@ -15,57 +16,72 @@ export function getBindings(device, module, format, buffers) {
       type: "uniform",
       buffer: buffers.terrainBuffer,
     },
-    currentCells: {
+    uSim: {
       binding: 3,
+      type: "uniform",
+      buffer: buffers.simBuffer,
+      minBindingSize: SIM_SLOT_SIZE,
+    },
+    currentCells: {
+      binding: 4,
       type: "storage",
       buffer: buffers.prevCellsBuffer,
     },
     nextCells: {
-      binding: 4,
+      binding: 5,
       type: "storage",
       buffer: buffers.nextCellsBuffer,
     },
     terrainColors: {
-      binding: 5,
+      binding: 6,
       type: "read-only-storage",
       buffer: buffers.terrainColorsBuffer,
     },
     outputTex: {
-      binding: 6,
+      binding: 7,
       type: "storage",
       buffer: buffers.outputTextureBuffer,
     },
     cursorQuery: {
-      binding: 7,
+      binding: 8,
       type: "storage",
       buffer: buffers.cursorQueryBuffer,
     },
     chunkData: {
-      binding: 8,
+      binding: 9,
       type: "storage",
       buffer: buffers.chunkDataBuffer,
     },
     sprites: {
-      binding: 9,
+      binding: 10,
       type: "read-only-storage",
       buffer: buffers.spriteDataBuffer,
     },
-    // spriteColors: {
-    //   binding: 12,
-    //   type: "read-only-storage",
-    //   buffer: buffers.spriteColorsBuffer,
-    // },
   };
 
   const unifiedComputeBGL = device.createBindGroupLayout({
     label: "Unified Compute BGL",
     entries: Object.keys(bufferSettings)
       .filter((k) => !["sprite", "spriteColors"].includes(k))
-      .map((key) => ({
-        binding: bufferSettings[key].binding,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: bufferSettings[key].type },
-      })),
+      .map((key) => {
+        if (key === "uSim") {
+          return {
+            binding: bufferSettings[key].binding,
+            visibility: GPUShaderStage.COMPUTE,
+            buffer: {
+              type: bufferSettings[key].type,
+              hasDynamicOffset: true,
+              minBindingSize: 16,
+            },
+          };
+        }
+
+        return {
+          binding: bufferSettings[key].binding,
+          visibility: GPUShaderStage.COMPUTE,
+          buffer: { type: bufferSettings[key].type },
+        };
+      }),
   });
 
   const unifiedComputeBG_A = device.createBindGroup({
@@ -83,6 +99,17 @@ export function getBindings(device, module, format, buffers) {
         return {
           binding: bufferSettings.nextCells.binding,
           resource: { buffer: buffers.nextCellsBuffer },
+        };
+      }
+
+      if (key === "uSim") {
+        return {
+          binding: bufferSettings.uSim.binding,
+          resource: {
+            buffer: buffers.simBuffer,
+            offset: 0,
+            size: SIM_SLOT_SIZE,
+          },
         };
       }
 
@@ -108,6 +135,17 @@ export function getBindings(device, module, format, buffers) {
         return {
           binding: bufferSettings.nextCells.binding,
           resource: { buffer: buffers.prevCellsBuffer },
+        };
+      }
+
+      if (key === "uSim") {
+        return {
+          binding: bufferSettings.uSim.binding,
+          resource: {
+            buffer: buffers.simBuffer,
+            offset: 0,
+            size: SIM_SLOT_SIZE,
+          },
         };
       }
 

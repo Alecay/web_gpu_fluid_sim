@@ -1,7 +1,7 @@
 struct View {
     size        : vec2<u32>, // width, height (pixels)
     time        : f32,       // seconds
-    simIndex    : u32,       // [0-inf] simulation passes
+    frameIndex    : u32,       // [0-inf] simulation passes
     showDebug   : u32, // @16
     pixelScale  : u32
 };
@@ -15,6 +15,13 @@ struct Input {
   // (12 bytes implicit padding here to align next member to 16B)
   visibleRect  : vec4<u32>, //  (x0, y0, x1, y1) in canvas coords
 };                          // total size = 48 bytes
+
+struct SimParams {
+  simIndex : u32,
+  _pad0     : u32,
+  _pad1     : u32,
+  _pad2     : u32, // keep 16B size for simplicity
+};
 
 struct SpriteInfo {
     spriteIndex : u32, // 10 bits (0..1023)
