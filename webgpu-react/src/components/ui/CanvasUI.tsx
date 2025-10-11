@@ -1,6 +1,6 @@
 import { CursorQuery } from "@/interfaces/CursorQuery";
 import { Input } from "@/interfaces/Input";
-import { Tabs, Tab, Card } from "react-bootstrap";
+import { Tabs, Tab, Card, ProgressBar } from "react-bootstrap";
 import HeightDisplay from "./HeightDisplay";
 import MapCoordDisplay from "./MapCoordDisplay";
 import HotkeyModal from "./HotkeyModal";
@@ -32,6 +32,12 @@ interface CanvasUIProps {
   cursorMode: CursorKind;
   setCursorMode: (value: React.SetStateAction<CursorKind>) => void;
   setCursorOverUI: (value: React.SetStateAction<boolean>) => void;
+  loadingState: {
+    loading: boolean;
+    setLoading: React.Dispatch<React.SetStateAction<boolean>>;
+    loadingProgress: number;
+    setLoadingProgress: React.Dispatch<React.SetStateAction<number>>;
+  };
 }
 
 export default function CanvasUI({
@@ -52,6 +58,7 @@ export default function CanvasUI({
   cursorMode,
   setCursorMode,
   setCursorOverUI,
+  loadingState,
 }: CanvasUIProps) {
   const cursorImages = {
     default: {
@@ -84,6 +91,17 @@ export default function CanvasUI({
     },
   } as const;
 
+  useEffect(() => {
+    if (loadingState.loading) {
+      setCursorOverUI(true);
+      setCursorMode("default");
+      console.log("hover");
+    } else {
+      setCursorOverUI(false);
+      setCursorMode("default");
+    }
+  }, [loadingState.loading]);
+
   return (
     <div
       style={{
@@ -102,6 +120,63 @@ export default function CanvasUI({
       }}
     >
       <div id="output" />
+
+      {loadingState.loading && (
+        <>
+          <div
+            style={{
+              position: "absolute", // relative to parent (like #canvasHolder)
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              backgroundColor: "black",
+              zIndex: 9000,
+              opacity: 1,
+              transition: "opacity 0.4s ease-out",
+            }}
+          />
+          <div
+            className="position-fixed top-50 start-50 translate-middle text-center"
+            style={{
+              zIndex: 9001,
+              width: "clamp(220px, 60vw, 520px)",
+              pointerEvents: "none",
+              fontFamily: '"Tiny 5", sans-serif',
+              fontWeight: 400,
+            }}
+          >
+            <div
+              className="text-white mb-2 fw-medium"
+              style={{ textShadow: "0 1px 2px rgba(0,0,0,.6)" }}
+            >
+              Loading… {Math.ceil(loadingState.loadingProgress)}%
+            </div>
+
+            <ProgressBar
+              now={loadingState.loadingProgress}
+              animated
+              // remove Bootstrap's rounded corners
+              style={{
+                height: "1rem",
+                borderRadius: 0,
+                backgroundColor: "#2a2a2a", // background (the empty track)
+              }}
+            >
+              <div
+                className="progress-bar"
+                role="progressbar"
+                style={{
+                  width: `${loadingState.loadingProgress}%`,
+                  backgroundColor: "#ffffffff", // filled color
+                  borderRadius: 0,
+                  transition: "width 0.3s ease-out",
+                }}
+              />
+            </ProgressBar>
+          </div>
+        </>
+      )}
 
       {showControlsUI && <ControlsUI />}
 

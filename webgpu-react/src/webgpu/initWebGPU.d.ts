@@ -21,5 +21,18 @@ export function initWebGPU(
   getInput: () => Input,
   setInput: Dispatch<SetStateAction<Input>>,
   setCursorQuery: Dispatch<SetStateAction<CursorQuery>>,
-  setSimIndex: Dispatch<SetStateAction<number>>
+  setSimIndex: Dispatch<SetStateAction<number>>,
+  setLoadinProgress: Dispatch<SetStateAction<number>>,
+  abortSignal: AbortSignal
+): Promise<WebGPUHandle>;
+
+// If your JS exports a *named* function
+export function initWebGPULatestWins(
+  canvas: HTMLCanvasElement | null,
+  noiseSettings: NoiseUISettings,
+  getInput: () => Input,
+  setInput: Dispatch<SetStateAction<Input>>,
+  setCursorQuery: Dispatch<SetStateAction<CursorQuery>>,
+  setSimIndex: Dispatch<SetStateAction<number>>,
+  setLoadinProgress: Dispatch<SetStateAction<number>>
 ): Promise<WebGPUHandle>;

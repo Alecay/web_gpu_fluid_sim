@@ -14,6 +14,19 @@ import { fps } from "../interfaces/FPSMeter";
 import { loadPackedSprites } from "../utils/sprites/loadPackedSprites";
 
 const MAX_SPRITE_WIDTH = 64;
+const SHOW_INIT_DEBUG = import.meta.env.DEV;
+
+const throwIfAborted = (signal, id, stage) => {
+  if (signal?.aborted) {
+    console.log(`Aborted ${id} at stage: ${stage}`);
+    throw new DOMException("Aborted", "AbortError");
+  }
+};
+
+const yeildFrame = () => new Promise(requestAnimationFrame);
+
+// module scope
+const activeInit = new WeakMap(); // canvas -> { promise, abort }
 
 /**
  * @param {HTMLCanvasElement | null} canvas
@@ -22,15 +35,163 @@ const MAX_SPRITE_WIDTH = 64;
  * @param {import('react').Dispatch<import('react').SetStateAction<Input>>} setInput
  * @param {import('react').Dispatch<import('react').SetStateAction<CursorQuery>>} setCursorQuery
  * @param {import('react').Dispatch<import('react').SetStateAction<number>>} setSimIndex
+ * @param {import('react').Dispatch<import('react').SetStateAction<number>>} setLoadingProgress
  * @returns {Promise<WebGPUHandle>}
  */
-export async function initWebGPU(
+export async function initWebGPULatestWins(
   canvas,
   noiseSettings = defaultNoiseUISettings,
   getInput,
   setInput,
   setCursorQuery,
-  setSimIndex
+  setSimIndex,
+  setLoadingProgress
+) {
+  if (!canvas) return null;
+
+  // Abort any in-flight init for this canvas
+  const prev = activeInit.get(canvas);
+  if (prev) prev.abort.abort();
+
+  const abort = new AbortController();
+
+  const promise = (async () => {
+    try {
+      // Important: make sure initWebGPU *honors* abort.signal internally
+      return await initWebGPU(
+        canvas,
+        noiseSettings,
+        getInput,
+        setInput,
+        setCursorQuery,
+        setSimIndex,
+        setLoadingProgress,
+        abort.signal
+      );
+    } catch (e) {
+      if (e.name === "AbortError") {
+        return; // expected control-flow exit
+      }
+    } finally {
+      // Clear only if we are still the active one
+      const cur = activeInit.get(canvas);
+      if (cur && cur.promise === promise) activeInit.delete(canvas);
+    }
+  })();
+
+  activeInit.set(canvas, { promise, abort });
+  return promise;
+}
+
+/**
+ * Uploads data to a GPUBuffer in manageable chunks, yielding each frame.
+ *
+ * @param {GPUDevice} device - The WebGPU device
+ * @param {GPUBuffer} buffer - The GPU buffer to write into
+ * @param {TypedArray} data - The typed array (Float32Array, Uint32Array, etc.)
+ * @param {number} [chunkElements=1_000_000] - How many elements to write per chunk (tune for performance)
+ * @param {AbortSignal} [signal=null]
+ */
+async function writeBufferInChunks(
+  device,
+  buffer,
+  data,
+  chunkElements = 1_000_000,
+  signal = null,
+  initID = 0
+) {
+  throwIfAborted(signal, initID, `Write buffer: ${buffer.label}`);
+  const start = performance.now();
+  const BYTES_PER_ELEMENT = data.BYTES_PER_ELEMENT;
+  const totalBytes = data.byteLength;
+  const totalElements = data.length;
+
+  let offsetElements = 0;
+
+  while (offsetElements < totalElements) {
+    const end = Math.min(offsetElements + chunkElements, totalElements);
+    const byteOffset = offsetElements * BYTES_PER_ELEMENT;
+    const byteLength = (end - offsetElements) * BYTES_PER_ELEMENT;
+
+    // Write this chunk into the GPU buffer
+    device.queue.writeBuffer(
+      buffer,
+      byteOffset,
+      data.buffer,
+      byteOffset,
+      byteLength
+    );
+
+    // Update offset
+    offsetElements = end;
+
+    if (SHOW_INIT_DEBUG)
+      console.log(
+        `Writing ${buffer.label} - ${Math.ceil(
+          (offsetElements / totalElements) * 100.0
+        )}%`
+      );
+    // Yield to let UI / main thread update before next chunk
+    throwIfAborted(signal, initID, `Write buffer: ${buffer.label}`);
+    await yeildFrame();
+  }
+
+  // Optionally wait for the GPU queue to catch up before proceeding
+  // await device.queue.onSubmittedWorkDone();
+
+  const duration = performance.now() - start;
+  if (SHOW_INIT_DEBUG)
+    console.log(
+      `${buffer.label ?? "Unnamed buffer"} uploaded ${(
+        totalBytes / 1e6
+      ).toFixed(2)} MB in ${duration.toFixed(2)} ms`
+    );
+}
+
+/**
+ * Get the chunk index (which chunk a cell belongs to).
+ * @param {[number, number]} cellPos - The cell position [x, y]
+ * @param {number} chunkSize - The size of one chunk (square)
+ * @returns {[number, number]} The chunk index [chunkX, chunkY]
+ */
+function getChunkPos(cellPos, chunkSize) {
+  const [x, y] = cellPos;
+  return [Math.floor(x / chunkSize), Math.floor(y / chunkSize)];
+}
+
+/**
+ * Get the number of chunks needed to cover a width × height grid.
+ * @param {number} width - The total width in cells
+ * @param {number} height - The total height in cells
+ * @param {number} chunkSize - The size of one chunk (square)
+ * @returns {[number, number]} Number of chunks along X and Y [chunksX, chunksY]
+ */
+function getNumChunks(width, height, chunkSize) {
+  const chunksX = Math.ceil(width / chunkSize);
+  const chunksY = Math.ceil(height / chunkSize);
+  return [chunksX, chunksY];
+}
+
+/**
+ * @param {HTMLCanvasElement | null} canvas
+ * @param {NoiseUISettings} noiseSettings
+ * @param {() => Input} getInput
+ * @param {import('react').Dispatch<import('react').SetStateAction<Input>>} setInput
+ * @param {import('react').Dispatch<import('react').SetStateAction<CursorQuery>>} setCursorQuery
+ * @param {import('react').Dispatch<import('react').SetStateAction<number>>} setSimIndex
+ * @param {import('react').Dispatch<import('react').SetStateAction<number>>} setLoadingProgress
+ * @param {AbortSignal} abortSignal
+ * @returns {Promise<WebGPUHandle>}
+ */
+async function initWebGPU(
+  canvas,
+  noiseSettings = defaultNoiseUISettings,
+  getInput,
+  setInput,
+  setCursorQuery,
+  setSimIndex,
+  setLoadingProgress,
+  abortSignal
 ) {
   if (!canvas) return () => {};
 
@@ -39,31 +200,76 @@ export async function initWebGPU(
     canvas.__wgpuCleanup(); // stop old RAF, remove listeners
   }
 
-  const isDevBuid = false; //import.meta.env.DEV;
+  const initStart = performance.now();
+  const initID = Math.ceil(Math.random() * 1_000_000_000);
+  if (SHOW_INIT_DEBUG) console.log(`Started initWebGPU-${initID}`);
+  const STAGE_COUNT = 9;
+  var currentStage = 0;
 
+  throwIfAborted(abortSignal, initID, "Start");
+  await yeildFrame();
+  setLoadingProgress((currentStage / STAGE_COUNT) * 100);
+  currentStage++;
+
+  // Vars
+  const isDevBuid = false; //import.meta.env.DEV;
+  var showDebug = isDevBuid;
+  var currentTime = 0;
+  var frameIndex = 0;
+  var simIndex = 0;
   var updateNormals = true;
   var updateTerrainTexture = true;
   var updateShadowTexture = true;
+  const initialInput = getInput();
+  const chunkSize = 16;
+  const [chunksX, chunksY] = getNumChunks(
+    noiseSettings.width,
+    noiseSettings.height,
+    chunkSize
+  );
+  var lastMapSeed = noiseSettings.seed;
+  var resetInFlight = false;
 
+  // Sim buffer vars
+  const SIM_OFFSET_ALIGN = 256; // required for dynamic offsets on uniforms
+  const SIM_SLOT_SIZE = 16; // our struct is 16 bytes, but we *stride* by 256
+  const SIM_SLOTS = 32; // up to how many substeps you’ll encode
+
+  // output texture vars
+  const outputTexLayers = 4;
+  const outputTexSize =
+    noiseSettings.width * noiseSettings.height * 4 * outputTexLayers;
+
+  const subPixelTexSize =
+    noiseSettings.width *
+    noiseSettings.height *
+    4 *
+    noiseSettings.pixelScale *
+    noiseSettings.pixelScale;
+
+  // Cell Buffer Vars
+  const FLOATS_PER_CELL = 12;
+  const BYTES_PER_CELL = 4 * FLOATS_PER_CELL;
+  const cellsBufferSize =
+    noiseSettings.width * noiseSettings.height * BYTES_PER_CELL;
+
+  const BUFFER_WRITE_CHUNK_SIZE = 1_000_000;
+
+  // Helper funcs
+
+  const toggleShowDebug = () => {
+    showDebug = !showDebug;
+  };
+
+  const setShowDebug = (s) => {
+    showDebug = s;
+  };
+
+  // Setup shader
   const device = await getDevice();
-  // console.log("Using WebGPU device:", device.__id);
-  // console.log(
-  //   "Max texture size: ",
-  //   device.limits.maxTextureDimension2D,
-  //   "current size: ",
-  //   noiseSettings.width * noiseSettings.pixelScale
-  // );
-
   const context = canvas.getContext("webgpu");
-  const format = navigator.gpu.getPreferredCanvasFormat();
-
-  canvas.style.imageRendering = "pixelated";
-
-  // Tag the context with this device id so we can assert later
   context.__deviceId = device.__id;
-
-  canvas.width = noiseSettings.width * noiseSettings.pixelScale;
-  canvas.height = noiseSettings.height * noiseSettings.pixelScale;
+  const format = navigator.gpu.getPreferredCanvasFormat();
 
   context.configure({
     device,
@@ -78,19 +284,17 @@ export async function initWebGPU(
     code: shaderCode,
   });
 
-  var currentTime = 0;
-  var frameIndex = 0;
-  var simIndex = 0;
-  var showDebug = isDevBuid;
+  throwIfAborted(abortSignal, initID, "Shader Compilation");
+  await yeildFrame();
+  setLoadingProgress((currentStage / STAGE_COUNT) * 100);
+  currentStage++;
 
-  const toggleShowDebug = () => {
-    showDebug = !showDebug;
-  };
+  // Setup Canvas
+  canvas.width = noiseSettings.width * noiseSettings.pixelScale;
+  canvas.height = noiseSettings.height * noiseSettings.pixelScale;
+  canvas.style.imageRendering = "pixelated";
 
-  const setShowDebug = (s) => {
-    showDebug = s;
-  };
-
+  // Creating buffers
   const viewUniformBuffer = createOrUpdateViewBuffer(device, {
     width: noiseSettings.width,
     height: noiseSettings.height,
@@ -114,8 +318,6 @@ export async function initWebGPU(
       viewUniformBuffer
     );
   }
-
-  const initialInput = getInput();
 
   const inputUniformBuffer = createOrUpdateInputBuffer(device, {
     mousePos: initialInput.mousePosition,
@@ -141,13 +343,9 @@ export async function initWebGPU(
     noiseSettings.colors
   );
 
-  const OFFSET_ALIGN = 256; // required for dynamic offsets on uniforms
-  const SIM_SLOT_SIZE = 16; // our struct is 16 bytes, but we *stride* by 256
-  const SIM_SLOTS = 32; // up to how many substeps you’ll encode
-
   const simBuffer = device.createBuffer({
     label: "Sim Index Buffer",
-    size: OFFSET_ALIGN * SIM_SLOTS,
+    size: SIM_OFFSET_ALIGN * SIM_SLOTS,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
@@ -155,52 +353,20 @@ export async function initWebGPU(
     for (let i = 0; i < SIM_SLOTS; i++) {
       const tmp = new ArrayBuffer(SIM_SLOT_SIZE);
       new Uint32Array(tmp)[0] = baseIndex + i;
-      device.queue.writeBuffer(simBuffer, i * OFFSET_ALIGN, tmp);
+      device.queue.writeBuffer(simBuffer, i * SIM_OFFSET_ALIGN, tmp);
     }
   };
 
-  /**
-   * Get the chunk index (which chunk a cell belongs to).
-   * @param {[number, number]} cellPos - The cell position [x, y]
-   * @param {number} chunkSize - The size of one chunk (square)
-   * @returns {[number, number]} The chunk index [chunkX, chunkY]
-   */
-  function getChunkPos(cellPos, chunkSize) {
-    const [x, y] = cellPos;
-    return [Math.floor(x / chunkSize), Math.floor(y / chunkSize)];
-  }
-
-  /**
-   * Get the number of chunks needed to cover a width × height grid.
-   * @param {number} width - The total width in cells
-   * @param {number} height - The total height in cells
-   * @param {number} chunkSize - The size of one chunk (square)
-   * @returns {[number, number]} Number of chunks along X and Y [chunksX, chunksY]
-   */
-  function getNumChunks(width, height, chunkSize) {
-    const chunksX = Math.ceil(width / chunkSize);
-    const chunksY = Math.ceil(height / chunkSize);
-    return [chunksX, chunksY];
-  }
-
-  const chunkSize = 16;
-  const [chunksX, chunksY] = getNumChunks(
-    noiseSettings.width,
-    noiseSettings.height,
-    chunkSize
-  );
+  throwIfAborted(abortSignal, initID, "Uniform Buffers");
+  await yeildFrame();
+  setLoadingProgress((currentStage / STAGE_COUNT) * 100);
+  currentStage++;
 
   const chunkDataBuffer = device.createBuffer({
     label: "Chunk Data",
     size: 16 * chunksX * chunksY,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
-
-  device.queue.writeBuffer(
-    chunkDataBuffer,
-    0,
-    new Float32Array(4 * chunksX * chunksY)
-  );
 
   /**
    * @param {Input} newInput
@@ -222,17 +388,6 @@ export async function initWebGPU(
     );
   }
 
-  const outputTexLayers = 4;
-  const outputTexSize =
-    noiseSettings.width * noiseSettings.height * 4 * outputTexLayers;
-
-  const subPixelTexSize =
-    noiseSettings.width *
-    noiseSettings.height *
-    4 *
-    noiseSettings.pixelScale *
-    noiseSettings.pixelScale;
-
   // Create output texture buffer
   const outputTextureBuffer = device.createBuffer({
     label: "Output Texture",
@@ -240,30 +395,35 @@ export async function initWebGPU(
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
 
-  device.queue.writeBuffer(
-    outputTextureBuffer,
-    0,
-    new Float32Array((outputTexSize + subPixelTexSize) / 4)
-  );
+  throwIfAborted(abortSignal, initID, "Texture Buffer");
+  await yeildFrame();
+  setLoadingProgress((currentStage / STAGE_COUNT) * 100);
+  currentStage++;
 
   console.time("loadPackedSprites");
   const { manifest, spritesU32, spriteMap } = await loadPackedSprites();
   console.timeEnd("loadPackedSprites");
 
-  // console.log(spriteMap);
+  throwIfAborted(abortSignal, initID, "Sprite Buffers");
+  await yeildFrame();
+  setLoadingProgress((currentStage / STAGE_COUNT) * 100);
+  currentStage++;
 
   const spriteDataBuffer = device.createBuffer({
     label: "Sprite Data",
     size: spritesU32.byteLength,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
-  device.queue.writeBuffer(spriteDataBuffer, 0, spritesU32);
+
+  await writeBufferInChunks(
+    device,
+    spriteDataBuffer,
+    spritesU32,
+    BUFFER_WRITE_CHUNK_SIZE,
+    abortSignal
+  );
 
   // ----- Storage buffers (vec4f per cell => 16 bytes) -----
-  const FLOATS_PER_CELL = 12;
-  const BYTES_PER_CELL = 4 * FLOATS_PER_CELL;
-  const cellsBufferSize =
-    noiseSettings.width * noiseSettings.height * BYTES_PER_CELL;
 
   const prevCellsBuffer = device.createBuffer({
     label: "Prev Cells",
@@ -277,8 +437,13 @@ export async function initWebGPU(
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
 
+  throwIfAborted(abortSignal, initID, "Cell Buffers");
+  await yeildFrame();
+  setLoadingProgress((currentStage / STAGE_COUNT) * 100);
+  currentStage++;
+
   // Initialize cells
-  const initializeNoise = (seed) => {
+  const initializeNoise = async (seed) => {
     const init = new Float32Array(
       noiseSettings.width * noiseSettings.height * FLOATS_PER_CELL
     );
@@ -294,37 +459,51 @@ export async function initWebGPU(
       noiseSettings.frequency
     );
 
+    throwIfAborted(abortSignal, initID, "Noise Gen");
+    await yeildFrame();
+    setLoadingProgress((currentStage / STAGE_COUNT) * 100);
+    currentStage++;
+
     for (let index = 0; index < noiseData.length; index++) {
       const cellIndex = index * FLOATS_PER_CELL;
       init[cellIndex] = noiseData[index] * 100.0;
       init[cellIndex + 8] = Math.floor(Math.random() * (7 - 0 + 1)) + 0; // set random dir
     }
 
-    device.queue.writeBuffer(prevCellsBuffer, 0, init);
-    device.queue.writeBuffer(nextCellsBuffer, 0, init);
-    // device.queue.submit([]);
+    await writeBufferInChunks(
+      device,
+      prevCellsBuffer,
+      init,
+      BUFFER_WRITE_CHUNK_SIZE,
+      abortSignal
+    );
+    await writeBufferInChunks(
+      device,
+      nextCellsBuffer,
+      init,
+      BUFFER_WRITE_CHUNK_SIZE,
+      abortSignal
+    );
 
     // reset some values
     frameIndex = 0;
     simIndex = 0;
     updateTerrainTexture = true;
-
-    // rafId = requestAnimationFrame(frame);
   };
 
-  var lastMapSeed = noiseSettings.seed;
-
-  const resetMap = () => {
-    initializeNoise(lastMapSeed);
+  const resetMap = async () => {
+    resetInFlight = true;
+    await initializeNoise(lastMapSeed);
+    resetInFlight = false;
     // console.log("reset");
   };
 
-  const randomizeMap = () => {
+  const randomizeMap = async () => {
     lastMapSeed = Math.ceil(Math.random() * 1000000000);
-    resetMap();
+    await resetMap();
   };
 
-  resetMap();
+  await resetMap();
 
   const cursorQueryBuffer = device.createBuffer({
     label: "Cursor Query",
@@ -337,6 +516,11 @@ export async function initWebGPU(
     size: 64,
     usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
   });
+
+  throwIfAborted(abortSignal, initID, "Query Buffers");
+  await yeildFrame();
+  setLoadingProgress((currentStage / STAGE_COUNT) * 100);
+  currentStage++;
 
   // // ----- Bind group layouts -----
   const bindings = getBindings(device, module, format, {
@@ -352,6 +536,11 @@ export async function initWebGPU(
     chunkDataBuffer,
     spriteDataBuffer,
   });
+
+  throwIfAborted(abortSignal, initID, "Binding Creation");
+  await yeildFrame();
+  setLoadingProgress((currentStage / STAGE_COUNT) * 100);
+  currentStage++;
 
   // ----- Render pass descriptor (no explicit typing) -----
   const renderPassDesc = {
@@ -381,6 +570,11 @@ export async function initWebGPU(
   function frame(tMs = 0) {
     if (context.__deviceId !== device.__id) return;
 
+    if (resetInFlight) {
+      rafId = requestAnimationFrame(frame);
+      return;
+    }
+
     fps.begin();
     var input = getInput();
 
@@ -405,7 +599,7 @@ export async function initWebGPU(
       const stepPass = encoder.beginComputePass({ label: "Step Compute Pass" });
       stepPass.setPipeline(bindings.piplines.stepComputePipeline);
       for (let i = 0; i < input.simulationSubSteps * 2; i++) {
-        dynamicSimOffset = i * OFFSET_ALIGN;
+        dynamicSimOffset = i * SIM_OFFSET_ALIGN;
         stepPass.setBindGroup(
           0,
           aToB
@@ -444,8 +638,6 @@ export async function initWebGPU(
       updateShadowTexture = true;
       // console.log("Visible rect changed");
     }
-
-    // updateShadowTexture = true;
 
     // Normal Compute: prev -> next in chosen direction
     if (updateNormals || updateTerrainTexture) {
@@ -719,6 +911,11 @@ export async function initWebGPU(
     setShowDebug,
     spriteMap,
   };
+
+  const initDuration = performance.now() - initStart;
+
+  if (SHOW_INIT_DEBUG)
+    console.log(`InitWebGPU complete (${initDuration.toFixed(2)} ms)`);
 
   return handle;
 }

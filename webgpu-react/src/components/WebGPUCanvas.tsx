@@ -6,7 +6,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { initWebGPU } from "../webgpu/initWebGPU";
+import { initWebGPULatestWins } from "../webgpu/initWebGPU";
 import {
   NoiseUISettings,
   defaultNoiseUISettings,
@@ -14,6 +14,7 @@ import {
 import { Input } from "@/interfaces/Input";
 import { CursorQuery } from "@/interfaces/CursorQuery";
 import { WebGPUHandle } from "@/webgpu/initWebGPU";
+import { ProgressBar, Spinner } from "react-bootstrap";
 
 interface WebGPUCanvasProps {
   style?: React.CSSProperties; // e.g., { width: '100%', height: '80vh' }
@@ -23,6 +24,12 @@ interface WebGPUCanvasProps {
   setWebGPUHandle: React.Dispatch<React.SetStateAction<WebGPUHandle | null>>;
   setCursorQuery: React.Dispatch<React.SetStateAction<CursorQuery>>;
   setSimIndex: React.Dispatch<React.SetStateAction<number>>;
+  loadingState: {
+    loading: boolean;
+    setLoading: React.Dispatch<React.SetStateAction<boolean>>;
+    loadingProgress: number;
+    setLoadingProgress: React.Dispatch<React.SetStateAction<number>>;
+  };
   children?: React.ReactNode;
 }
 
@@ -36,6 +43,7 @@ const WebGPUCanvas = forwardRef<HTMLCanvasElement, WebGPUCanvasProps>(
       setCursorQuery,
       style,
       setSimIndex,
+      loadingState,
       children,
     },
     ref
@@ -45,71 +53,79 @@ const WebGPUCanvas = forwardRef<HTMLCanvasElement, WebGPUCanvasProps>(
     // Expose the DOM node to the parent (as a RefObject-like .current)
     useImperativeHandle(ref, () => localRef.current!, []);
 
+    // helpers (can live outside the component so they aren't re-created)
+    const nextFrame = () =>
+      new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    const idle = () =>
+      new Promise<void>((resolve) =>
+        (window as any).requestIdleCallback
+          ? (window as any).requestIdleCallback(() => resolve())
+          : setTimeout(resolve, 0)
+      );
+    const throwIfAborted = (signal: AbortSignal) => {
+      if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+    };
+
     // Initialize WebGPU once per noiseSettings
     useEffect(() => {
       if (!localRef.current) return;
+      let handle: WebGPUHandle | null = null;
 
-      let cleanup = () => {};
-      let abort = false;
+      console.log("Init effect");
+      (
+        localRef.current as HTMLCanvasElement & { __wgpuCleanup?: () => void }
+      ).__wgpuCleanup?.();
 
-      const nextFrame = () =>
-        new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-      const idle = () =>
-        new Promise<void>((resolve) =>
-          // fall back to rAF if requestIdleCallback is unavailable
-          (window as any).requestIdleCallback
-            ? (window as any).requestIdleCallback(() => resolve())
-            : requestAnimationFrame(() => resolve())
-        );
+      initWebGPULatestWins(
+        localRef.current,
+        noiseSettings,
+        () => inputRef.current,
+        setInput,
+        setCursorQuery,
+        setSimIndex,
+        loadingState.setLoadingProgress
+      )
+        .then((h) => {
+          if (!h) return;
+          handle = h;
+          setWebGPUHandle(h);
+          // setLoading(false);
+          const timer = setTimeout(() => loadingState.setLoading(false), 1000);
+        })
+        .catch((e) => {
+          if (e?.name !== "AbortError") console.error(e);
+        });
 
-      (async () => {
-        // 1) Let the canvas render before heavy work
-        await nextFrame();
-        if (abort) return;
-
-        // 2) Give the main thread a breather (network, styles, etc.)
-        await idle();
-        if (abort) return;
-
-        // 3) Now do your existing initialization
-        const handle = await initWebGPU(
-          localRef.current!,
-          noiseSettings,
-          () => inputRef.current,
-          setInput,
-          setCursorQuery,
-          setSimIndex
-        );
-        if (abort) {
-          handle.cleanup?.();
-          return;
-        }
-        cleanup = handle.cleanup;
-        setWebGPUHandle(handle);
-      })();
-
+      // cleanup when deps change or unmount
       return () => {
-        abort = true;
-        cleanup?.();
+        handle?.cleanup?.();
       };
       // keep deps minimal to avoid repeated inits
-    }, [noiseSettings, setInput, setWebGPUHandle, setCursorQuery]);
+    }, [
+      noiseSettings,
+      setInput,
+      setWebGPUHandle,
+      setCursorQuery,
+      setSimIndex,
+      loadingState.setLoadingProgress,
+    ]);
 
     // If you want click-through overlay, add pointerEvents: 'none' on the overlay.
     // Remove it if the overlay needs to be interactive.
     return (
-      <canvas
-        ref={localRef}
-        style={{
-          ...style, // e.g., { width:'100%', height:'80vh' }
-          display: "block",
-          width: "100%",
-          height: "100%",
-          // transform: "translate(-25%, 0%)",ssd
-        }}
-      >
-        {children}
-      </canvas>
+      <>
+        <canvas
+          ref={localRef}
+          style={{
+            ...style,
+            display: "block",
+            width: "100%",
+            height: "100%",
+          }}
+        >
+          {children}
+        </canvas>
+      </>
     );
   }
 );

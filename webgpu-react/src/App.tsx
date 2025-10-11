@@ -100,6 +100,9 @@ export default function App() {
   // keep the last known mouse position in viewport coords
   const lastClientPosRef = useRef<{ x: number; y: number } | null>(null);
 
+  const [loading, setLoading] = useState(true);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+
   const updateMouseFromClient = useCallback(
     (
       clientX?: number,
@@ -632,6 +635,12 @@ export default function App() {
             setWebGPUHandle={setWebHandle}
             setCursorQuery={setCursorQuery}
             setSimIndex={setSimIndex}
+            loadingState={{
+              loading,
+              setLoading,
+              loadingProgress,
+              setLoadingProgress,
+            }}
           ></WebGPUCanvas>
 
           {/* <WebCanvasSprite
@@ -665,6 +674,12 @@ export default function App() {
           cursorMode={cursorMode}
           setCursorMode={setCursorMode}
           setCursorOverUI={setCursorOverUI}
+          loadingState={{
+            loading,
+            setLoading,
+            loadingProgress,
+            setLoadingProgress,
+          }}
         />
       </div>
     </>
